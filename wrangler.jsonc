@@ -13,9 +13,7 @@
     {
       "binding": "DB",
       "database_name": "kms-db",
-      // Replace with real id after running `wrangler d1 create kms-db`.
-      // Local dev works fine with this placeholder.
-      "database_id": "local-dev-placeholder",
+      "database_id": "63bf3dff-5447-4733-97d6-a59557a2e086",
       "migrations_dir": "./drizzle/migrations"
     }
   ]

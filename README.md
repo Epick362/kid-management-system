@@ -35,7 +35,7 @@ pnpm db:migrate:remote
 pnpm exec wrangler d1 execute kms-db --remote --file=./drizzle/seed.sql
 
 # 4. Deploy
-pnpm deploy
+pnpm run deploy                              # `pnpm deploy` collides with a built-in
 # → first deploy will prompt you to login to Cloudflare if you haven't already
 ```
 
