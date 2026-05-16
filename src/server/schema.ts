@@ -155,6 +155,14 @@ export const choreCompletionsRelations = relations(choreCompletions, ({ one }) =
   chore: one(chores, { fields: [choreCompletions.choreId], references: [chores.id] }),
 }));
 
+export const screenTimeEntriesRelations = relations(screenTimeEntries, ({ one }) => ({
+  kid: one(kids, { fields: [screenTimeEntries.kidId], references: [kids.id] }),
+}));
+
+export const balanceAdjustmentsRelations = relations(balanceAdjustments, ({ one }) => ({
+  kid: one(kids, { fields: [balanceAdjustments.kidId], references: [kids.id] }),
+}));
+
 /* ---------- type exports ---------- */
 
 export type Family = typeof families.$inferSelect;
