@@ -57,3 +57,30 @@ export function eachDay(start: Date, end: Date): string[] {
   }
   return out;
 }
+
+/**
+ * Returns the first day of a month as a `YYYY-MM-DD` string in TZ.
+ * Used to drive the calendar view.
+ */
+export function monthStartKey(year: number, month1based: number): string {
+  return `${year}-${String(month1based).padStart(2, "0")}-01`;
+}
+
+/**
+ * Returns the number of days in a month (1-based month).
+ * Pure Gregorian — same answer in any timezone since months are calendar
+ * not wall-clock.
+ */
+export function daysInMonth(year: number, month1based: number): number {
+  return new Date(Date.UTC(year, month1based, 0)).getUTCDate();
+}
+
+/**
+ * 0 = Monday, 6 = Sunday — what column the first day of the month
+ * falls into, given a Monday-leading week (Slovak convention).
+ */
+export function firstWeekdayMondayLead(year: number, month1based: number): number {
+  // 0=Sun..6=Sat in JS
+  const dow = new Date(Date.UTC(year, month1based - 1, 1)).getUTCDay();
+  return (dow + 6) % 7; // shift so Monday=0
+}

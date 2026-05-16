@@ -1,11 +1,20 @@
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { useState } from "react";
 import { sk } from "../lib/sk";
-import { getKidDashboardFn, kidLogCompletionFn } from "../server/kid-fns";
+import { getKidCalendarFn, getKidDashboardFn, kidLogCompletionFn } from "../server/kid-fns";
 import { choreTypes, type ChoreType } from "../server/schema";
+import { CalendarGrid } from "../components/CalendarGrid";
 
 export const Route = createFileRoute("/kid/$kidId")({
-  loader: ({ params }) => getKidDashboardFn({ data: { kidId: Number(params.kidId) } }),
+  loader: async ({ params }) => {
+    const kidId = Number(params.kidId);
+    const now = new Date();
+    const [dash, cal] = await Promise.all([
+      getKidDashboardFn({ data: { kidId } }),
+      getKidCalendarFn({ data: { kidId, year: now.getFullYear(), month: now.getMonth() + 1 } }),
+    ]);
+    return { ...dash, cal };
+  },
   component: KidDashboard,
 });
 
@@ -23,7 +32,7 @@ function KidDashboard() {
 
   async function refresh() {
     const next = await getKidDashboardFn({ data: { kidId: data.kid.id } });
-    setData(next);
+    setData((prev) => ({ ...next, cal: prev.cal }));
   }
 
   async function onTapChore(choreId: number) {
@@ -117,6 +126,20 @@ function KidDashboard() {
           );
         })}
       </div>
+
+      <section className="mt-8 pt-6 border-t border-ink-soft/15">
+        <CalendarGrid
+          year={data.cal.year}
+          month={data.cal.month}
+          days={data.cal.days}
+          onNavigate={async (y, m) => {
+            const next = await getKidCalendarFn({
+              data: { kidId: data.kid.id, year: y, month: m },
+            });
+            setData((prev) => ({ ...prev, cal: next }));
+          }}
+        />
+      </section>
 
       {celebrate && <CelebrateOverlay msg={celebrate.msg} minutes={celebrate.minutes} />}
     </main>

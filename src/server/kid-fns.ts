@@ -11,13 +11,15 @@ import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 
 import * as schema from "./schema";
-import { dayKey } from "../lib/dates";
+import { dayKey, daysInMonth } from "../lib/dates";
 import {
   computeAvailableToday,
   computeBankBalance,
   computeDailyUsed,
+  computeDayColor,
   rollQuestBonus,
   type BankEvent,
+  type DayColor,
 } from "./screen-time";
 /** v1 single-family — see family.server.ts. Inlined here to avoid a static
  *  import of a `.server.*` module from a file reachable by routes. */
@@ -144,6 +146,89 @@ export const getKidDashboardFn = createServerFn({ method: "GET" })
   });
 
 /* ──────────────── kid-side log (no admin auth) ──────────────── */
+
+/* ──────────────── calendar (used by kid + admin views) ──────────────── */
+
+export interface CalendarDayPayload {
+  key: string;
+  color: DayColor;
+  choresDoneCount: number;
+  minutesUsed: number;
+}
+
+export const getKidCalendarFn = createServerFn({ method: "GET" })
+  .inputValidator((data: unknown) =>
+    z
+      .object({
+        kidId: z.number().int().positive(),
+        year: z.number().int().min(2020).max(2100),
+        month: z.number().int().min(1).max(12),
+      })
+      .parse(data),
+  )
+  .handler(async ({ data }) => {
+    const { getDbFromEnv } = await import("./env.server");
+    const db = getDbFromEnv();
+
+    const kid = await db.query.kids.findFirst({
+      where: and(
+        eq(schema.kids.id, data.kidId),
+        eq(schema.kids.familyId, SINGLE_FAMILY_ID),
+      ),
+    });
+    if (!kid) throw new Error("Kid not found");
+
+    const family = await db.query.families.findFirst({
+      where: eq(schema.families.id, SINGLE_FAMILY_ID),
+    });
+    if (!family) throw new Error("Family not found");
+
+    // Bounds: first → last day of month UTC. Bratislava overlap handled via dayKey.
+    const monthStart = new Date(Date.UTC(data.year, data.month - 1, 1));
+    const monthEnd = new Date(Date.UTC(data.year, data.month - 1, daysInMonth(data.year, data.month), 23, 59, 59));
+
+    const [completions, usage] = await Promise.all([
+      db.query.choreCompletions.findMany({
+        where: eq(schema.choreCompletions.kidId, kid.id),
+      }),
+      db.query.screenTimeEntries.findMany({
+        where: eq(schema.screenTimeEntries.kidId, kid.id),
+      }),
+    ]);
+
+    // Bucket by dayKey
+    const choresByDay = new Map<string, number>();
+    for (const c of completions) {
+      if (c.completedAt < monthStart || c.completedAt > monthEnd) continue;
+      const k = dayKey(c.completedAt);
+      choresByDay.set(k, (choresByDay.get(k) ?? 0) + 1);
+    }
+    const usedByDay = new Map<string, number>();
+    for (const u of usage) {
+      if (u.usedAt < monthStart || u.usedAt > monthEnd) continue;
+      const k = dayKey(u.usedAt);
+      usedByDay.set(k, (usedByDay.get(k) ?? 0) + u.minutes);
+    }
+
+    const now = new Date();
+    const days: CalendarDayPayload[] = [];
+    const total = daysInMonth(data.year, data.month);
+    for (let d = 1; d <= total; d++) {
+      const key = `${data.year}-${String(data.month).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+      const dayDate = new Date(Date.UTC(data.year, data.month - 1, d, 12)); // noon to avoid TZ-edge ambiguity
+      const choresDoneCount = choresByDay.get(key) ?? 0;
+      const minutesUsed = usedByDay.get(key) ?? 0;
+      const color = computeDayColor({
+        day: dayDate,
+        state: { choresDoneCount, minutesUsed },
+        dailyCapMinutes: family.dailyCapMinutes,
+        now,
+      });
+      days.push({ key, color, choresDoneCount, minutesUsed });
+    }
+
+    return { year: data.year, month: data.month, days };
+  });
 
 export const kidLogCompletionFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) =>
