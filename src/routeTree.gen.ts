@@ -10,33 +10,128 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AdminIndexRouteImport } from './routes/admin.index'
+import { Route as AdminSettingsRouteImport } from './routes/admin.settings'
+import { Route as AdminLoginRouteImport } from './routes/admin.login'
+import { Route as AdminLogRouteImport } from './routes/admin.log'
+import { Route as AdminKidsRouteImport } from './routes/admin.kids'
+import { Route as AdminChoresRouteImport } from './routes/admin.chores'
+import { Route as AdminCalendarRouteImport } from './routes/admin.calendar'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminIndexRoute = AdminIndexRouteImport.update({
+  id: '/admin/',
+  path: '/admin/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminSettingsRoute = AdminSettingsRouteImport.update({
+  id: '/admin/settings',
+  path: '/admin/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminLoginRoute = AdminLoginRouteImport.update({
+  id: '/admin/login',
+  path: '/admin/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminLogRoute = AdminLogRouteImport.update({
+  id: '/admin/log',
+  path: '/admin/log',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminKidsRoute = AdminKidsRouteImport.update({
+  id: '/admin/kids',
+  path: '/admin/kids',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminChoresRoute = AdminChoresRouteImport.update({
+  id: '/admin/chores',
+  path: '/admin/chores',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminCalendarRoute = AdminCalendarRouteImport.update({
+  id: '/admin/calendar',
+  path: '/admin/calendar',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/admin/calendar': typeof AdminCalendarRoute
+  '/admin/chores': typeof AdminChoresRoute
+  '/admin/kids': typeof AdminKidsRoute
+  '/admin/log': typeof AdminLogRoute
+  '/admin/login': typeof AdminLoginRoute
+  '/admin/settings': typeof AdminSettingsRoute
+  '/admin/': typeof AdminIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/admin/calendar': typeof AdminCalendarRoute
+  '/admin/chores': typeof AdminChoresRoute
+  '/admin/kids': typeof AdminKidsRoute
+  '/admin/log': typeof AdminLogRoute
+  '/admin/login': typeof AdminLoginRoute
+  '/admin/settings': typeof AdminSettingsRoute
+  '/admin': typeof AdminIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/admin/calendar': typeof AdminCalendarRoute
+  '/admin/chores': typeof AdminChoresRoute
+  '/admin/kids': typeof AdminKidsRoute
+  '/admin/log': typeof AdminLogRoute
+  '/admin/login': typeof AdminLoginRoute
+  '/admin/settings': typeof AdminSettingsRoute
+  '/admin/': typeof AdminIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/admin/calendar'
+    | '/admin/chores'
+    | '/admin/kids'
+    | '/admin/log'
+    | '/admin/login'
+    | '/admin/settings'
+    | '/admin/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/admin/calendar'
+    | '/admin/chores'
+    | '/admin/kids'
+    | '/admin/log'
+    | '/admin/login'
+    | '/admin/settings'
+    | '/admin'
+  id:
+    | '__root__'
+    | '/'
+    | '/admin/calendar'
+    | '/admin/chores'
+    | '/admin/kids'
+    | '/admin/log'
+    | '/admin/login'
+    | '/admin/settings'
+    | '/admin/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AdminCalendarRoute: typeof AdminCalendarRoute
+  AdminChoresRoute: typeof AdminChoresRoute
+  AdminKidsRoute: typeof AdminKidsRoute
+  AdminLogRoute: typeof AdminLogRoute
+  AdminLoginRoute: typeof AdminLoginRoute
+  AdminSettingsRoute: typeof AdminSettingsRoute
+  AdminIndexRoute: typeof AdminIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +143,67 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/': {
+      id: '/admin/'
+      path: '/admin'
+      fullPath: '/admin/'
+      preLoaderRoute: typeof AdminIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/settings': {
+      id: '/admin/settings'
+      path: '/admin/settings'
+      fullPath: '/admin/settings'
+      preLoaderRoute: typeof AdminSettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/login': {
+      id: '/admin/login'
+      path: '/admin/login'
+      fullPath: '/admin/login'
+      preLoaderRoute: typeof AdminLoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/log': {
+      id: '/admin/log'
+      path: '/admin/log'
+      fullPath: '/admin/log'
+      preLoaderRoute: typeof AdminLogRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/kids': {
+      id: '/admin/kids'
+      path: '/admin/kids'
+      fullPath: '/admin/kids'
+      preLoaderRoute: typeof AdminKidsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/chores': {
+      id: '/admin/chores'
+      path: '/admin/chores'
+      fullPath: '/admin/chores'
+      preLoaderRoute: typeof AdminChoresRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/calendar': {
+      id: '/admin/calendar'
+      path: '/admin/calendar'
+      fullPath: '/admin/calendar'
+      preLoaderRoute: typeof AdminCalendarRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AdminCalendarRoute: AdminCalendarRoute,
+  AdminChoresRoute: AdminChoresRoute,
+  AdminKidsRoute: AdminKidsRoute,
+  AdminLogRoute: AdminLogRoute,
+  AdminLoginRoute: AdminLoginRoute,
+  AdminSettingsRoute: AdminSettingsRoute,
+  AdminIndexRoute: AdminIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

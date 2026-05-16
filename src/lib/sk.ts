@@ -13,11 +13,19 @@ export const sk = {
     pickKid: "Vyber si svoj profil",
   },
   admin: {
+    title: "Správa",
     loginTitle: "Prihlásenie rodiča",
+    firstRunTitle: "Prvé spustenie — nastav heslo",
+    firstRunHelp: "Žiadne heslo zatiaľ nie je nastavené. Heslo, ktoré teraz zadáš, bude tvoje admin heslo.",
     passwordLabel: "Heslo",
     loginButton: "Prihlásiť sa",
+    setupButton: "Nastaviť heslo a prihlásiť",
     logout: "Odhlásiť sa",
     wrongPassword: "Nesprávne heslo. Skús to znova.",
+    today: {
+      heading: "Dnes",
+      empty: "Zatiaľ dnes žiadne záznamy.",
+    },
     nav: {
       today: "Dnes",
       kids: "Deti",
