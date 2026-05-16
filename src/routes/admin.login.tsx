@@ -1,4 +1,4 @@
-import { createFileRoute, useRouter } from "@tanstack/react-router";
+import { createFileRoute, isRedirect, useRouter } from "@tanstack/react-router";
 import { useState } from "react";
 import { sk } from "../lib/sk";
 import { getFirstRunStateFn, loginFn } from "../server/auth-fns";
@@ -24,18 +24,20 @@ function AdminLogin() {
       const result = await loginFn({ data: { password } });
       if (result && "ok" in result && result.ok === false) {
         setError(sk.admin.wrongPassword);
-      } else {
-        // Server fn threw redirect; router will have navigated already.
-        router.invalidate();
+        setSubmitting(false);
+        return;
       }
+      // No throw — server fn returned without redirect (shouldn't happen on success).
+      await router.navigate({ to: "/admin" });
     } catch (err) {
-      // redirect() throws — that's the success path.
-      // Any other error: show generic message.
-      const message = err instanceof Error ? err.message : String(err);
-      if (!message.toLowerCase().includes("redirect")) {
-        setError(message);
+      // Success path: server fn threw redirect() → client SDK rethrows a
+      // serialized Redirect. Follow it manually.
+      if (isRedirect(err)) {
+        const dest = (err as { to?: string; href?: string }).to ?? (err as { href?: string }).href ?? "/admin";
+        await router.navigate({ href: dest, replace: true });
+        return;
       }
-    } finally {
+      setError(err instanceof Error ? err.message : "Niečo sa pokazilo. Skús to znova.");
       setSubmitting(false);
     }
   }
