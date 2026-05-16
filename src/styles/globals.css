@@ -1,0 +1,43 @@
+@import "tailwindcss";
+
+@theme {
+  /* Pastel palette tokens — children-friendly, not childish */
+  --color-cream: oklch(0.98 0.015 90);
+  --color-mint: oklch(0.86 0.09 165);
+  --color-mint-deep: oklch(0.68 0.13 165);
+  --color-peach: oklch(0.86 0.09 45);
+  --color-peach-deep: oklch(0.68 0.13 45);
+  --color-lavender: oklch(0.86 0.09 295);
+  --color-lavender-deep: oklch(0.68 0.13 295);
+  --color-butter: oklch(0.94 0.10 95);
+  --color-butter-deep: oklch(0.78 0.14 95);
+  --color-sky: oklch(0.86 0.08 225);
+  --color-sky-deep: oklch(0.65 0.14 225);
+  --color-ink: oklch(0.28 0.02 260);
+  --color-ink-soft: oklch(0.45 0.02 260);
+
+  --font-display: "Quicksand", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-body: system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  --radius-card: 1.25rem;
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    -webkit-tap-highlight-color: transparent;
+  }
+  body {
+    background-color: var(--color-cream);
+    color: var(--color-ink);
+    font-family: var(--font-body);
+    overscroll-behavior-y: none;
+  }
+  h1, h2, h3 {
+    font-family: var(--font-display);
+    font-weight: 700;
+  }
+  button {
+    cursor: pointer;
+  }
+}

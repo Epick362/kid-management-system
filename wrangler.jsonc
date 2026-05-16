@@ -1,0 +1,22 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "kms",
+  "compatibility_date": "2026-05-16",
+  "compatibility_flags": ["nodejs_compat"],
+  "main": "@tanstack/react-start/server-entry",
+  "observability": { "enabled": true },
+  "vars": {
+    // ADMIN_PASSWORD is set via `wrangler secret put ADMIN_PASSWORD` for production.
+    // For local dev, put it in .dev.vars (gitignored).
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "kms-db",
+      // Replace with real id after running `wrangler d1 create kms-db`.
+      // Local dev works fine with this placeholder.
+      "database_id": "local-dev-placeholder",
+      "migrations_dir": "./drizzle/migrations"
+    }
+  ]
+}
