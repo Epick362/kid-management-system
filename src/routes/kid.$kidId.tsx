@@ -1,0 +1,195 @@
+import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
+import { useState } from "react";
+import { sk } from "../lib/sk";
+import { getKidDashboardFn, kidLogCompletionFn } from "../server/kid-fns";
+import { choreTypes, type ChoreType } from "../server/schema";
+
+export const Route = createFileRoute("/kid/$kidId")({
+  loader: ({ params }) => getKidDashboardFn({ data: { kidId: Number(params.kidId) } }),
+  component: KidDashboard,
+});
+
+function pickPraise(): string {
+  const list = sk.chore.praise;
+  return list[Math.floor(Math.random() * list.length)]!;
+}
+
+function KidDashboard() {
+  const initial = Route.useLoaderData();
+  const router = useRouter();
+  const [data, setData] = useState(initial);
+  const [busy, setBusy] = useState(false);
+  const [celebrate, setCelebrate] = useState<{ msg: string; minutes: number } | null>(null);
+
+  async function refresh() {
+    const next = await getKidDashboardFn({ data: { kidId: data.kid.id } });
+    setData(next);
+  }
+
+  async function onTapChore(choreId: number) {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const result = await kidLogCompletionFn({ data: { kidId: data.kid.id, choreId } });
+      if (result.ok === false) return;
+      setCelebrate({ msg: pickPraise(), minutes: result.minutesAwarded });
+      setTimeout(() => setCelebrate(null), 2200);
+      await refresh();
+      router.invalidate();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <main className="min-h-dvh px-4 py-5 max-w-md mx-auto">
+      <header className="flex items-center gap-3 mb-4">
+        <Link to="/" className="text-2xl">⬅️</Link>
+        <span className="text-4xl">{data.kid.avatarEmoji}</span>
+        <h1 className="text-2xl font-bold flex-1">{data.kid.name}</h1>
+      </header>
+
+      <BalanceRing
+        available={data.available}
+        dailyCap={data.family.dailyCapMinutes}
+        usedToday={data.usedToday}
+      />
+
+      <div className="grid grid-cols-2 gap-2 mb-6 text-center">
+        <div className="bg-lavender/40 rounded-card p-2.5">
+          <div className="text-xs text-ink-soft">{sk.kid.bankLabel}</div>
+          <div className="text-xl font-bold">
+            {Math.max(0, data.balance)}
+            <span className="text-sm font-normal text-ink-soft"> {sk.units.min}</span>
+          </div>
+        </div>
+        <div className="bg-peach/40 rounded-card p-2.5">
+          <div className="text-xs text-ink-soft">{sk.admin.today.usedTodayLabel}</div>
+          <div className="text-xl font-bold">
+            {data.usedToday}
+            <span className="text-sm font-normal text-ink-soft"> {sk.units.min}</span>
+          </div>
+        </div>
+      </div>
+
+      <h2 className="text-xl font-bold mb-3">{sk.kid.pickChore}</h2>
+      {data.chores.length === 0 && <p className="text-ink-soft">{sk.kid.noChores}</p>}
+
+      <div className="space-y-5">
+        {choreTypes.map((t) => {
+          const list = data.chores.filter((c) => c.type === t);
+          if (list.length === 0) return null;
+          return (
+            <section key={t}>
+              <h3 className="text-sm uppercase tracking-wide text-ink-soft mb-2">
+                {sk.admin.chores.groupHeading[t]}
+              </h3>
+              <div className="space-y-2">
+                {list.map((c) => {
+                  const disabled = busy || c.dayCapReached || c.weekCapReached;
+                  return (
+                    <button
+                      key={c.id}
+                      onClick={() => onTapChore(c.id)}
+                      disabled={disabled}
+                      className={
+                        "w-full rounded-card p-4 text-left flex items-center gap-3 shadow-sm transition-all " +
+                        (disabled
+                          ? "bg-white/30 text-ink-soft"
+                          : "bg-white hover:scale-[1.02] active:scale-[0.98]")
+                      }
+                    >
+                      <span className="text-4xl">{c.icon}</span>
+                      <div className="flex-1 min-w-0">
+                        <div className="font-semibold text-lg truncate">{c.name}</div>
+                        <div className="text-sm text-ink-soft">
+                          {choreReward(c.type, c.rewardMinutes, c.bonusMin, c.bonusMax, c.todayCount, c.maxPerDay)}
+                        </div>
+                      </div>
+                      {!disabled && c.type !== "family_duty" && (
+                        <span className="text-lg">▶️</span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
+          );
+        })}
+      </div>
+
+      {celebrate && <CelebrateOverlay msg={celebrate.msg} minutes={celebrate.minutes} />}
+    </main>
+  );
+}
+
+function choreReward(
+  type: ChoreType,
+  reward: number,
+  bonusMin: number | null,
+  bonusMax: number | null,
+  todayCount: number,
+  maxPerDay: number | null,
+): string {
+  let label: string;
+  if (type === "family_duty") label = "—";
+  else if (type === "earning_weekly_quest" && bonusMin !== null && bonusMax !== null) {
+    label = `🎲 ${bonusMin}–${bonusMax} ${sk.units.min}`;
+  } else label = `+${reward} ${sk.units.min}`;
+  if (maxPerDay !== null && maxPerDay > 1) label += ` · ${todayCount}/${maxPerDay}`;
+  return label;
+}
+
+function BalanceRing({
+  available,
+  dailyCap,
+  usedToday,
+}: {
+  available: number;
+  dailyCap: number;
+  usedToday: number;
+}) {
+  // Circular progress: usedToday / dailyCap. Display available in center.
+  const pct = Math.min(100, dailyCap > 0 ? (usedToday / dailyCap) * 100 : 0);
+  const dash = (pct / 100) * 251.3; // 2π * r=40
+  return (
+    <div className="flex flex-col items-center mb-6">
+      <div className="relative w-44 h-44">
+        <svg viewBox="0 0 100 100" className="w-full h-full -rotate-90">
+          <circle cx="50" cy="50" r="40" stroke="currentColor" strokeWidth="10" fill="none" className="text-mint/30" />
+          <circle
+            cx="50"
+            cy="50"
+            r="40"
+            stroke="currentColor"
+            strokeWidth="10"
+            fill="none"
+            className="text-mint-deep transition-all duration-500"
+            strokeDasharray={`${dash} 251.3`}
+            strokeLinecap="round"
+          />
+        </svg>
+        <div className="absolute inset-0 flex flex-col items-center justify-center">
+          <div className="text-xs text-ink-soft">{sk.kid.todayLabel}</div>
+          <div className="text-4xl font-bold">{available}</div>
+          <div className="text-xs text-ink-soft">{sk.kid.minutes}</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CelebrateOverlay({ msg, minutes }: { msg: string; minutes: number }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 pointer-events-none">
+      <div className="bg-cream rounded-card p-8 text-center shadow-2xl animate-[pop_300ms_ease-out]">
+        <div className="text-6xl mb-2">🎉</div>
+        <div className="text-2xl font-bold">{msg}</div>
+        {minutes > 0 && (
+          <div className="text-mint-deep font-semibold text-xl mt-2">+{minutes} {sk.units.min}</div>
+        )}
+      </div>
+      <style>{`@keyframes pop { 0%{transform:scale(.7);opacity:0} 50%{transform:scale(1.1)} 100%{transform:scale(1);opacity:1} }`}</style>
+    </div>
+  );
+}
