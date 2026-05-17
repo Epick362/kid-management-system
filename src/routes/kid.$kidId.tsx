@@ -199,37 +199,44 @@ function BalanceRing({
   usedToday: number;
   locked: boolean;
 }) {
-  // Circular progress: usedToday / dailyCap. Display available in center.
+  // Ring fills as the kid uses time today (used / dailyCap).
   const pct = Math.min(100, dailyCap > 0 ? (usedToday / dailyCap) * 100 : 0);
   const dash = (pct / 100) * 251.3; // 2π * r=40
+  const hasFill = pct > 0;
   return (
     <div className={"kid-ring flex flex-col items-center mb-6 " + (locked ? "kid-ring-locked" : "")}>
       <div className="relative w-44 h-44">
         <svg viewBox="0 0 100 100" className="w-full h-full -rotate-90">
-          <circle cx="50" cy="50" r="40" stroke="currentColor" strokeWidth="10" fill="none" className="kid-ring-track" />
-          <circle
-            cx="50"
-            cy="50"
-            r="40"
-            stroke="currentColor"
-            strokeWidth="10"
-            fill="none"
-            className="kid-ring-fill transition-all duration-500"
-            strokeDasharray={`${dash} 251.3`}
-            strokeLinecap="round"
-          />
+          {/* outer dark edge (Minecraft XP-bar inset look) */}
+          <circle cx="50" cy="50" r="42" stroke="currentColor" strokeWidth="2" fill="none" className="kid-ring-edge" />
+          {/* track */}
+          <circle cx="50" cy="50" r="40" stroke="currentColor" strokeWidth="8" fill="none" className="kid-ring-track" />
+          {/* fill — only when there's progress, butt cap for clean pixel edges */}
+          {hasFill && (
+            <circle
+              cx="50"
+              cy="50"
+              r="40"
+              stroke="currentColor"
+              strokeWidth="8"
+              fill="none"
+              className="kid-ring-fill transition-all duration-500"
+              strokeDasharray={`${dash} 251.3`}
+              strokeLinecap="butt"
+            />
+          )}
         </svg>
-        <div className="absolute inset-0 flex flex-col items-center justify-center">
+        <div className="absolute inset-0 flex flex-col items-center justify-center px-4 text-center">
           {locked ? (
             <>
               <div className="text-4xl">🔒</div>
-              <div className="text-xs text-ink-soft mt-1">{sk.kid.locked}</div>
+              <div className="kid-ring-label mt-1">{sk.kid.locked}</div>
             </>
           ) : (
             <>
-              <div className="text-xs text-ink-soft">{sk.kid.todayLabel}</div>
-              <div className="kid-ring-number text-4xl font-bold">{available}</div>
-              <div className="text-xs text-ink-soft">{sk.kid.minutes}</div>
+              <div className="kid-ring-label">{sk.kid.todayLabel}</div>
+              <div className="kid-ring-number leading-none">{available}</div>
+              <div className="kid-ring-label">{sk.kid.minutes}</div>
             </>
           )}
         </div>
