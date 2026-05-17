@@ -139,7 +139,7 @@ export const sk = {
   },
   kid: {
     todayLabel: "Dnes máš k dispozícii",
-    bankLabel: "V banke",
+    bankLabel: "Tvoj poklad",
     minutes: "minút",
     pickChore: "Vyber si úlohu",
     noChores: "Dnes už nie sú žiadne úlohy. Bav sa!",
