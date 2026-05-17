@@ -63,17 +63,18 @@
  * stays offline-capable and there are no IP concerns.
  */
 .kid-root.theme-minecraft {
-  --mc-grass: #5fa14a;
-  --mc-grass-light: #71b85a;
-  --mc-grass-dark: #4d8d3e;
-  --mc-dirt: #8b6644;
-  --mc-dirt-dark: #71523a;
-  --mc-dirt-light: #a2785a;
-  --mc-stone: #7e7e7e;
-  --mc-stone-dark: #5a5a5a;
+  --mc-grass: #6b9a52;
+  --mc-grass-light: #80b365;
+  --mc-grass-dark: #547d3f;
+  --mc-dirt: #7a5a3c;
+  --mc-dirt-dark: #604632;
+  --mc-dirt-light: #8e6e4e;
+  --mc-stone: #6e6e6e;
+  --mc-stone-dark: #4d4d4d;
+  --mc-stone-light: #8a8a8a;
   --mc-wood: #a07550;
   --mc-wood-dark: #6e4d33;
-  --mc-sky: #88c8ff;
+  --mc-sky: #a5cce3;
   --mc-xp: #80ff20;
   --mc-xp-dark: #408000;
   --mc-diamond: #4ee7e7;
@@ -81,13 +82,30 @@
   --mc-ink: #1a1a1a;
 
   color: var(--mc-ink);
-  /* tileable 16px grass-top + dirt block, scaled up 4× via background-size */
-  background-color: var(--mc-dirt);
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' shape-rendering='crispEdges'><rect width='16' height='4' fill='%235fa14a'/><rect x='1' y='0' width='1' height='1' fill='%2371b85a'/><rect x='5' y='0' width='1' height='1' fill='%2371b85a'/><rect x='9' y='0' width='1' height='1' fill='%2371b85a'/><rect x='12' y='0' width='1' height='1' fill='%2371b85a'/><rect x='3' y='1' width='1' height='1' fill='%234d8d3e'/><rect x='7' y='1' width='1' height='1' fill='%234d8d3e'/><rect x='11' y='1' width='1' height='1' fill='%234d8d3e'/><rect x='14' y='2' width='1' height='1' fill='%234d8d3e'/><rect y='4' width='16' height='12' fill='%238b6644'/><rect x='2' y='5' width='2' height='1' fill='%2371523a'/><rect x='10' y='5' width='1' height='2' fill='%2371523a'/><rect x='5' y='7' width='1' height='2' fill='%23a2785a'/><rect x='13' y='8' width='1' height='1' fill='%2371523a'/><rect x='1' y='10' width='3' height='1' fill='%2371523a'/><rect x='7' y='11' width='2' height='2' fill='%23a2785a'/><rect x='12' y='12' width='2' height='1' fill='%2371523a'/><rect x='4' y='13' width='1' height='2' fill='%23a2785a'/><rect x='9' y='14' width='1' height='1' fill='%2371523a'/></svg>");
-  background-size: 64px 64px;
-  background-repeat: repeat;
+  background-color: var(--mc-stone);
   image-rendering: pixelated;
   font-family: ui-monospace, "SFMono-Regular", "Consolas", "Liberation Mono", monospace;
+  position: relative;
+  isolation: isolate;
+}
+
+/*
+ * Fixed-position "world cross-section" background: stays put while content
+ * scrolls. One muted scene, not a repeating tile. ::before instead of
+ * background-attachment:fixed because the latter is unreliable on iOS.
+ */
+.kid-root.theme-minecraft::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-color: var(--mc-stone-dark);
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 500' preserveAspectRatio='xMidYMid slice' shape-rendering='crispEdges'><rect width='200' height='150' fill='%23a5cce3'/><rect x='162' y='18' width='18' height='18' fill='%23f0d670'/><rect x='158' y='22' width='4' height='10' fill='%23f0d670'/><rect x='180' y='22' width='4' height='10' fill='%23f0d670'/><rect x='167' y='14' width='8' height='4' fill='%23f0d670'/><rect x='167' y='36' width='8' height='4' fill='%23f0d670'/><rect x='22' y='44' width='34' height='8' fill='%23e8eef2'/><rect x='28' y='40' width='24' height='4' fill='%23e8eef2'/><rect x='30' y='52' width='20' height='4' fill='%23e8eef2'/><rect x='96' y='78' width='28' height='6' fill='%23e8eef2'/><rect x='100' y='74' width='18' height='4' fill='%23e8eef2'/><rect y='150' width='200' height='8' fill='%236b9a52'/><rect x='10' y='146' width='5' height='4' fill='%2380b365'/><rect x='52' y='148' width='3' height='2' fill='%2380b365'/><rect x='100' y='146' width='6' height='4' fill='%2380b365'/><rect x='148' y='148' width='4' height='2' fill='%2380b365'/><rect x='178' y='147' width='3' height='3' fill='%2380b365'/><rect y='158' width='200' height='60' fill='%237a5a3c'/><rect x='18' y='168' width='10' height='8' fill='%23604632' opacity='0.6'/><rect x='78' y='184' width='12' height='6' fill='%23604632' opacity='0.6'/><rect x='138' y='176' width='10' height='10' fill='%23604632' opacity='0.6'/><rect x='42' y='200' width='8' height='6' fill='%238e6e4e' opacity='0.5'/><rect x='160' y='196' width='8' height='4' fill='%238e6e4e' opacity='0.5'/><rect y='218' width='200' height='282' fill='%236e6e6e'/><rect y='340' width='200' height='160' fill='%23000000' opacity='0.18'/><rect x='28' y='234' width='14' height='10' fill='%234d4d4d' opacity='0.65'/><rect x='96' y='248' width='10' height='12' fill='%238a8a8a' opacity='0.5'/><rect x='156' y='240' width='10' height='8' fill='%234d4d4d' opacity='0.65'/><rect x='52' y='280' width='8' height='8' fill='%238a8a8a' opacity='0.5'/><rect x='118' y='304' width='12' height='8' fill='%234d4d4d' opacity='0.65'/><rect x='34' y='258' width='14' height='14' fill='%234d4d4d' stroke='%231a1a1a' stroke-width='1'/><rect x='38' y='262' width='3' height='3' fill='%231a1a1a'/><rect x='42' y='266' width='4' height='3' fill='%231a1a1a'/><rect x='37' y='268' width='3' height='2' fill='%231a1a1a'/><rect x='142' y='322' width='14' height='14' fill='%236e6e6e' stroke='%231a1a1a' stroke-width='1'/><rect x='146' y='326' width='3' height='3' fill='%23d8af93'/><rect x='150' y='330' width='4' height='3' fill='%23d8af93'/><rect x='147' y='332' width='3' height='2' fill='%23d8af93'/><rect x='62' y='378' width='14' height='14' fill='%236e6e6e' stroke='%231a1a1a' stroke-width='1'/><rect x='66' y='382' width='3' height='3' fill='%23fcee4b'/><rect x='70' y='385' width='4' height='3' fill='%23fcee4b'/><rect x='65' y='388' width='3' height='2' fill='%23fcee4b'/><rect x='104' y='420' width='14' height='14' fill='%236e6e6e' stroke='%231a1a1a' stroke-width='1'/><rect x='108' y='424' width='3' height='3' fill='%23c81d1d'/><rect x='112' y='427' width='3' height='3' fill='%23c81d1d'/><rect x='107' y='430' width='3' height='2' fill='%23c81d1d'/><rect x='168' y='450' width='14' height='14' fill='%236e6e6e' stroke='%231a1a1a' stroke-width='1'/><rect x='172' y='454' width='3' height='3' fill='%234ee7e7'/><rect x='176' y='457' width='3' height='3' fill='%234ee7e7'/><rect x='171' y='462' width='3' height='2' fill='%234ee7e7'/></svg>");
+  background-size: cover;
+  background-position: center top;
+  background-repeat: no-repeat;
+  image-rendering: pixelated;
 }
 
 .kid-root.theme-minecraft .kid-title,
