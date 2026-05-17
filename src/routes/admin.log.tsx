@@ -20,6 +20,8 @@ import {
   type ChoreType,
   type IncidentCategory,
 } from "../server/schema";
+import { ErrorBanner } from "../components/ErrorBanner";
+import { getErrorMessage } from "../lib/errors";
 
 export const Route = createFileRoute("/admin/log")({
   beforeLoad: () => requireAdminFn(),
@@ -45,10 +47,15 @@ function AdminLogPage() {
   const [state, setState] = useState(initial.state);
   const [busy, setBusy] = useState(false);
   const [flash, setFlash] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   async function refreshState(id: number) {
-    const next = await getKidLogStateFn({ data: { kidId: id } });
-    setState(next);
+    try {
+      const next = await getKidLogStateFn({ data: { kidId: id } });
+      setState(next);
+    } catch (err) {
+      setError(getErrorMessage(err, sk.errors.loadFailed));
+    }
   }
 
   async function selectKid(id: number) {
@@ -59,6 +66,7 @@ function AdminLogPage() {
   async function onLogChore(choreId: number) {
     if (!kidId) return;
     setBusy(true);
+    setError(null);
     try {
       const res = await logCompletionFn({ data: { kidId, choreId } });
       if (res.ok === false) {
@@ -68,6 +76,8 @@ function AdminLogPage() {
       }
       await refreshState(kidId);
       router.invalidate();
+    } catch (err) {
+      setError(getErrorMessage(err, sk.errors.logFailed));
     } finally {
       setBusy(false);
     }
@@ -75,23 +85,38 @@ function AdminLogPage() {
 
   async function onUndoCompletion(id: number) {
     if (!kidId) return;
-    await undoCompletionFn({ data: { id } });
-    await refreshState(kidId);
-    router.invalidate();
+    setError(null);
+    try {
+      await undoCompletionFn({ data: { id } });
+      await refreshState(kidId);
+      router.invalidate();
+    } catch (err) {
+      setError(getErrorMessage(err, sk.errors.generic));
+    }
   }
 
   async function onUndoScreen(id: number) {
     if (!kidId) return;
-    await undoScreenTimeFn({ data: { id } });
-    await refreshState(kidId);
-    router.invalidate();
+    setError(null);
+    try {
+      await undoScreenTimeFn({ data: { id } });
+      await refreshState(kidId);
+      router.invalidate();
+    } catch (err) {
+      setError(getErrorMessage(err, sk.errors.generic));
+    }
   }
 
   async function onUndoIncident(id: number) {
     if (!kidId) return;
-    await undoIncidentFn({ data: { id } });
-    await refreshState(kidId);
-    router.invalidate();
+    setError(null);
+    try {
+      await undoIncidentFn({ data: { id } });
+      await refreshState(kidId);
+      router.invalidate();
+    } catch (err) {
+      setError(getErrorMessage(err, sk.errors.generic));
+    }
   }
 
   if (initial.kids.length === 0) {
@@ -131,6 +156,8 @@ function AdminLogPage() {
         <Stat label={sk.admin.today.bankLabel} value={`${Math.max(0, state.balance)}`} unit="min" />
         <Stat label={sk.admin.today.usedTodayLabel} value={`${state.usedToday}`} unit="min" />
       </div>
+
+      <ErrorBanner message={error} onDismiss={() => setError(null)} />
 
       {flash && (
         <div className="bg-mint/40 text-ink rounded-card px-3 py-2 mb-4 text-sm" role="status">
@@ -199,9 +226,14 @@ function AdminLogPage() {
         )}
         <LogScreenTimeForm
           onSubmit={async (minutes, note) => {
-            await logScreenTimeFn({ data: { kidId, minutes, note } });
-            await refreshState(kidId);
-            router.invalidate();
+            setError(null);
+            try {
+              await logScreenTimeFn({ data: { kidId, minutes, note } });
+              await refreshState(kidId);
+              router.invalidate();
+            } catch (err) {
+              setError(getErrorMessage(err, sk.errors.logFailed));
+            }
           }}
         />
       </section>
@@ -211,9 +243,14 @@ function AdminLogPage() {
         <h2 className="text-lg font-semibold mb-3">{sk.admin.log.logIncident}</h2>
         <IncidentForm
           onSubmit={async (category, note) => {
-            await addIncidentFn({ data: { kidId, category, note } });
-            await refreshState(kidId);
-            router.invalidate();
+            setError(null);
+            try {
+              await addIncidentFn({ data: { kidId, category, note } });
+              await refreshState(kidId);
+              router.invalidate();
+            } catch (err) {
+              setError(getErrorMessage(err, sk.errors.logFailed));
+            }
           }}
         />
       </section>
@@ -223,9 +260,14 @@ function AdminLogPage() {
         <h2 className="text-lg font-semibold mb-3">{sk.admin.log.adjustBalance}</h2>
         <AdjustmentForm
           onSubmit={async (minutes, reason) => {
-            await addAdjustmentFn({ data: { kidId, minutes, reason } });
-            await refreshState(kidId);
-            router.invalidate();
+            setError(null);
+            try {
+              await addAdjustmentFn({ data: { kidId, minutes, reason } });
+              await refreshState(kidId);
+              router.invalidate();
+            } catch (err) {
+              setError(getErrorMessage(err, sk.errors.logFailed));
+            }
           }}
         />
       </section>

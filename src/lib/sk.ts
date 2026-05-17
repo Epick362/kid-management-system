@@ -174,4 +174,13 @@ export const sk = {
   units: {
     min: "min",
   },
+  errors: {
+    generic: "Niečo sa pokazilo. Skús to znova.",
+    saveFailed: "Uloženie zlyhalo.",
+    deleteFailed: "Vymazanie zlyhalo.",
+    logFailed: "Zápis zlyhal.",
+    loadFailed: "Načítanie zlyhalo.",
+    retry: "Skúsiť znova",
+    home: "Domov",
+  },
 } as const;

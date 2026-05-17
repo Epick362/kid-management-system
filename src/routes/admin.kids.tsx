@@ -5,6 +5,8 @@ import { sk } from "../lib/sk";
 import { requireAdminFn } from "../server/auth-fns";
 import { listKidsFn, upsertKidFn, deleteKidFn } from "../server/admin-fns";
 import { kidThemes, type KidTheme } from "../server/schema";
+import { ErrorBanner } from "../components/ErrorBanner";
+import { getErrorMessage } from "../lib/errors";
 
 export const Route = createFileRoute("/admin/kids")({
   beforeLoad: () => requireAdminFn(),
@@ -34,28 +36,40 @@ function AdminKidsPage() {
   const { kids } = Route.useLoaderData();
   const router = useRouter();
   const [editing, setEditing] = useState<EditingKid | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [pageError, setPageError] = useState<string | null>(null);
 
   async function onSave(e: React.FormEvent) {
     e.preventDefault();
     if (!editing) return;
-    await upsertKidFn({
-      data: {
-        id: editing.id,
-        name: editing.name,
-        emoji: editing.emoji,
-        color: editing.color,
-        theme: editing.theme,
-        active: editing.active,
-      },
-    });
-    setEditing(null);
-    router.invalidate();
+    setFormError(null);
+    try {
+      await upsertKidFn({
+        data: {
+          id: editing.id,
+          name: editing.name,
+          emoji: editing.emoji,
+          color: editing.color,
+          theme: editing.theme,
+          active: editing.active,
+        },
+      });
+      setEditing(null);
+      router.invalidate();
+    } catch (err) {
+      setFormError(getErrorMessage(err, sk.errors.saveFailed));
+    }
   }
 
   async function onDelete(id: number) {
     if (!confirm(sk.admin.kids.confirmDelete)) return;
-    await deleteKidFn({ data: { id } });
-    router.invalidate();
+    setPageError(null);
+    try {
+      await deleteKidFn({ data: { id } });
+      router.invalidate();
+    } catch (err) {
+      setPageError(getErrorMessage(err, sk.errors.deleteFailed));
+    }
   }
 
   return (
@@ -71,6 +85,8 @@ function AdminKidsPage() {
           + {sk.admin.kids.add}
         </button>
       </div>
+
+      <ErrorBanner message={pageError} onDismiss={() => setPageError(null)} />
 
       {kids.length === 0 && <p className="text-ink-soft">{sk.admin.kids.empty}</p>}
 
@@ -114,7 +130,12 @@ function AdminKidsPage() {
           value={editing}
           onChange={setEditing}
           onSave={onSave}
-          onCancel={() => setEditing(null)}
+          onCancel={() => {
+            setEditing(null);
+            setFormError(null);
+          }}
+          error={formError}
+          onDismissError={() => setFormError(null)}
         />
       )}
     </AdminShell>
@@ -126,11 +147,15 @@ function KidForm({
   onChange,
   onSave,
   onCancel,
+  error,
+  onDismissError,
 }: {
   value: EditingKid;
   onChange: (v: EditingKid) => void;
   onSave: (e: React.FormEvent) => void;
   onCancel: () => void;
+  error: string | null;
+  onDismissError: () => void;
 }) {
   return (
     <div className="fixed inset-0 z-50 bg-black/30 flex items-end sm:items-center justify-center p-4">
@@ -141,6 +166,7 @@ function KidForm({
         <h2 className="text-lg font-semibold">
           {value.id ? sk.admin.kids.edit : sk.admin.kids.add}
         </h2>
+        <ErrorBanner message={error} onDismiss={onDismissError} />
 
         <label className="block">
           <span className="block text-sm font-medium mb-1">{sk.admin.kids.nameLabel}</span>

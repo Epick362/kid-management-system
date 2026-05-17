@@ -7,7 +7,7 @@
     "dev": "vite dev",
     "build": "vite build",
     "preview": "vite preview",
-    "deploy": "vite build && wrangler deploy",
+    "deploy": "wrangler d1 migrations apply kms-db --remote && vite build && wrangler deploy",
     "test": "vitest",
     "typecheck": "tsc --noEmit",
     "db:generate": "drizzle-kit generate",

@@ -4,6 +4,7 @@ import { sk } from "../lib/sk";
 import { getKidCalendarFn, getKidDashboardFn, kidLogCompletionFn } from "../server/kid-fns";
 import { choreTypes, type ChoreType } from "../server/schema";
 import { CalendarGrid } from "../components/CalendarGrid";
+import { getErrorMessage } from "../lib/errors";
 
 export const Route = createFileRoute("/kid/$kidId")({
   loader: async ({ params }) => {
@@ -29,15 +30,21 @@ function KidDashboard() {
   const [data, setData] = useState(initial);
   const [busy, setBusy] = useState(false);
   const [celebrate, setCelebrate] = useState<{ msg: string; minutes: number } | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   async function refresh() {
-    const next = await getKidDashboardFn({ data: { kidId: data.kid.id } });
-    setData((prev) => ({ ...next, cal: prev.cal }));
+    try {
+      const next = await getKidDashboardFn({ data: { kidId: data.kid.id } });
+      setData((prev) => ({ ...next, cal: prev.cal }));
+    } catch (err) {
+      setError(getErrorMessage(err, sk.errors.loadFailed));
+    }
   }
 
   async function onTapChore(choreId: number) {
     if (busy) return;
     setBusy(true);
+    setError(null);
     try {
       const result = await kidLogCompletionFn({ data: { kidId: data.kid.id, choreId } });
       if (result.ok === false) return;
@@ -45,6 +52,9 @@ function KidDashboard() {
       setTimeout(() => setCelebrate(null), 2200);
       await refresh();
       router.invalidate();
+    } catch (err) {
+      setError(getErrorMessage(err, sk.errors.logFailed));
+      setTimeout(() => setError(null), 3500);
     } finally {
       setBusy(false);
     }
@@ -167,7 +177,22 @@ function KidDashboard() {
       </section>
 
       {celebrate && <CelebrateOverlay msg={celebrate.msg} minutes={celebrate.minutes} />}
+      {error && <ErrorToast msg={error} onDismiss={() => setError(null)} />}
     </main>
+  );
+}
+
+function ErrorToast({ msg, onDismiss }: { msg: string; onDismiss: () => void }) {
+  return (
+    <div
+      role="alert"
+      onClick={onDismiss}
+      className="fixed bottom-4 inset-x-4 z-50 max-w-md mx-auto bg-peach-deep text-white rounded-card px-4 py-3 shadow-2xl text-sm flex items-start gap-2"
+    >
+      <span aria-hidden>⚠️</span>
+      <div className="flex-1 break-words">{msg}</div>
+      <span className="text-white/80 text-xs">✕</span>
+    </div>
   );
 }
 

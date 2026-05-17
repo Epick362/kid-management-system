@@ -5,6 +5,8 @@ import { sk } from "../lib/sk";
 import { requireAdminFn } from "../server/auth-fns";
 import { listChoresFn, upsertChoreFn, deleteChoreFn } from "../server/admin-fns";
 import { choreTypes, type ChoreType } from "../server/schema";
+import { ErrorBanner } from "../components/ErrorBanner";
+import { getErrorMessage } from "../lib/errors";
 
 export const Route = createFileRoute("/admin/chores")({
   beforeLoad: () => requireAdminFn(),
@@ -49,6 +51,8 @@ function AdminChoresPage() {
   const { chores } = Route.useLoaderData();
   const router = useRouter();
   const [editing, setEditing] = useState<EditingChore | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [pageError, setPageError] = useState<string | null>(null);
 
   const grouped: Record<ChoreType, typeof chores> = {
     family_duty: [],
@@ -60,15 +64,25 @@ function AdminChoresPage() {
   async function onSave(e: React.FormEvent) {
     e.preventDefault();
     if (!editing) return;
-    await upsertChoreFn({ data: editing });
-    setEditing(null);
-    router.invalidate();
+    setFormError(null);
+    try {
+      await upsertChoreFn({ data: editing });
+      setEditing(null);
+      router.invalidate();
+    } catch (err) {
+      setFormError(getErrorMessage(err, sk.errors.saveFailed));
+    }
   }
 
   async function onDelete(id: number) {
     if (!confirm(sk.admin.chores.confirmDelete)) return;
-    await deleteChoreFn({ data: { id } });
-    router.invalidate();
+    setPageError(null);
+    try {
+      await deleteChoreFn({ data: { id } });
+      router.invalidate();
+    } catch (err) {
+      setPageError(getErrorMessage(err, sk.errors.deleteFailed));
+    }
   }
 
   return (
@@ -79,6 +93,8 @@ function AdminChoresPage() {
           + {sk.admin.chores.add}
         </button>
       </div>
+
+      <ErrorBanner message={pageError} onDismiss={() => setPageError(null)} />
 
       {chores.length === 0 && <p className="text-ink-soft">{sk.admin.chores.empty}</p>}
 
@@ -146,7 +162,12 @@ function AdminChoresPage() {
           value={editing}
           onChange={setEditing}
           onSave={onSave}
-          onCancel={() => setEditing(null)}
+          onCancel={() => {
+            setEditing(null);
+            setFormError(null);
+          }}
+          error={formError}
+          onDismissError={() => setFormError(null)}
         />
       )}
     </AdminShell>
@@ -171,11 +192,15 @@ function ChoreForm({
   onChange,
   onSave,
   onCancel,
+  error,
+  onDismissError,
 }: {
   value: EditingChore;
   onChange: (v: EditingChore) => void;
   onSave: (e: React.FormEvent) => void;
   onCancel: () => void;
+  error: string | null;
+  onDismissError: () => void;
 }) {
   const isWeekly = value.type === "earning_weekly_quest";
   const isDaily = value.type === "earning_daily";
@@ -190,6 +215,7 @@ function ChoreForm({
         <h2 className="text-lg font-semibold">
           {value.id ? sk.admin.chores.edit : sk.admin.chores.add}
         </h2>
+        <ErrorBanner message={error} onDismiss={onDismissError} />
 
         <Field label={sk.admin.chores.nameLabel}>
           <input

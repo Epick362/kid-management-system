@@ -8,6 +8,8 @@ import {
   updateSettingsFn,
   changePasswordFn,
 } from "../server/admin-fns";
+import { ErrorBanner } from "../components/ErrorBanner";
+import { getErrorMessage } from "../lib/errors";
 
 export const Route = createFileRoute("/admin/settings")({
   beforeLoad: () => requireAdminFn(),
@@ -42,26 +44,39 @@ function AdminSettingsPage() {
   const [newPassword, setNewPassword] = useState("");
   const [pwSavedAt, setPwSavedAt] = useState<number | null>(null);
 
+  const [settingsError, setSettingsError] = useState<string | null>(null);
+  const [pwError, setPwError] = useState<string | null>(null);
+
   async function onSubmitSettings(e: React.FormEvent) {
     e.preventDefault();
-    await updateSettingsFn({
-      data: {
-        name,
-        dailyCapMinutes: Number(dailyCap),
-        bankCapMinutes: Number(bankCap),
-        defaultChoreMinutes: Number(defaultChore),
-      },
-    });
-    setSavedAt(Date.now());
-    router.invalidate();
+    setSettingsError(null);
+    try {
+      await updateSettingsFn({
+        data: {
+          name,
+          dailyCapMinutes: Number(dailyCap),
+          bankCapMinutes: Number(bankCap),
+          defaultChoreMinutes: Number(defaultChore),
+        },
+      });
+      setSavedAt(Date.now());
+      router.invalidate();
+    } catch (err) {
+      setSettingsError(getErrorMessage(err, sk.errors.saveFailed));
+    }
   }
 
   async function onChangePassword(e: React.FormEvent) {
     e.preventDefault();
     if (newPassword.length < 4) return;
-    await changePasswordFn({ data: { password: newPassword } });
-    setNewPassword("");
-    setPwSavedAt(Date.now());
+    setPwError(null);
+    try {
+      await changePasswordFn({ data: { password: newPassword } });
+      setNewPassword("");
+      setPwSavedAt(Date.now());
+    } catch (err) {
+      setPwError(getErrorMessage(err, sk.errors.saveFailed));
+    }
   }
 
   return (
@@ -69,6 +84,7 @@ function AdminSettingsPage() {
       <h1 className="text-2xl font-bold mb-6">{sk.admin.settings.heading}</h1>
 
       <form onSubmit={onSubmitSettings} className="space-y-4 mb-10">
+        <ErrorBanner message={settingsError} onDismiss={() => setSettingsError(null)} />
         <Field label={sk.admin.settings.familyName}>
           <input
             type="text"
@@ -126,6 +142,7 @@ function AdminSettingsPage() {
       <section className="border-t border-ink-soft/15 pt-8">
         <h2 className="text-lg font-semibold mb-3">{sk.admin.settings.changePassword}</h2>
         <form onSubmit={onChangePassword} className="space-y-3 max-w-sm">
+          <ErrorBanner message={pwError} onDismiss={() => setPwError(null)} />
           <Field label={sk.admin.settings.newPassword}>
             <input
               type="password"
