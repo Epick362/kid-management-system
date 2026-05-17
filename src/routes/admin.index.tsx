@@ -47,7 +47,7 @@ function AdminHome() {
 
             <div className="grid grid-cols-3 gap-2 text-center mb-3">
               <Stat label={sk.admin.today.availableLabel} value={row.available} accent="mint" />
-              <Stat label={sk.admin.today.bankLabel} value={Math.max(0, row.balance)} accent="lavender" />
+              <Stat label={sk.admin.today.bankLabel} value={row.balance} accent="lavender" />
               <Stat label={sk.admin.today.usedTodayLabel} value={row.usedToday} accent="peach" />
             </div>
 

@@ -111,29 +111,19 @@ export const listChoresFn = createServerFn({ method: "GET" }).handler(async () =
   return { chores: rows };
 });
 
-const choreInputSchema = z
-  .object({
-    id: z.number().int().positive().optional(),
-    name: z.string().min(1).max(80),
-    icon: z.string().min(1).max(8).default("✨"),
-    type: z.enum(choreTypes),
-    rewardMinutes: z.number().int().min(0).max(600).default(0),
-    bonusMin: z.number().int().min(0).max(600).nullable().default(null),
-    bonusMax: z.number().int().min(0).max(600).nullable().default(null),
-    maxPerDay: z.number().int().min(1).max(20).nullable().default(null),
-    maxPerWeek: z.number().int().min(1).max(50).nullable().default(null),
-    requiredForPlay: z.boolean().default(false),
-    active: z.boolean().default(true),
-  })
-  .refine(
-    (v) =>
-      v.type !== "earning_weekly_quest" ||
-      (v.bonusMin !== null && v.bonusMax !== null && v.bonusMin <= v.bonusMax),
-    {
-      message: "Weekly quest needs valid bonusMin ≤ bonusMax",
-      path: ["bonusMin"],
-    },
-  );
+const choreInputSchema = z.object({
+  id: z.number().int().positive().optional(),
+  name: z.string().min(1).max(80),
+  icon: z.string().min(1).max(8).default("✨"),
+  type: z.enum(choreTypes),
+  rewardMinutes: z.number().int().min(0).max(600).default(0),
+  bonusMin: z.number().int().min(0).max(600).nullable().default(null),
+  bonusMax: z.number().int().min(0).max(600).nullable().default(null),
+  maxPerDay: z.number().int().min(1).max(20).nullable().default(null),
+  maxPerWeek: z.number().int().min(1).max(50).nullable().default(null),
+  requiredForPlay: z.boolean().default(false),
+  active: z.boolean().default(true),
+});
 
 export const upsertChoreFn = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => choreInputSchema.parse(data))

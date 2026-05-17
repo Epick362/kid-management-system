@@ -15,7 +15,6 @@ import {
   computeAvailableToday,
   computeBankBalance,
   computeDailyUsed,
-  rollQuestBonus,
   type BankEvent,
 } from "./screen-time";
 
@@ -275,15 +274,10 @@ export const logCompletionFn = createServerFn({ method: "POST" })
       }
     }
 
-    // Compute minutes awarded
-    let minutes = 0;
-    if (chore.type === "earning_daily") minutes = chore.rewardMinutes;
-    else if (chore.type === "earning_weekly_quest") {
-      const lo = chore.bonusMin ?? chore.rewardMinutes;
-      const hi = chore.bonusMax ?? chore.rewardMinutes;
-      minutes = rollQuestBonus(lo, hi);
-    }
-    // family_duty: minutes stays 0
+    // Compute minutes awarded — fixed reward for daily + weekly quest;
+    // family_duty stays 0.
+    const minutes =
+      chore.type === "family_duty" ? 0 : chore.rewardMinutes;
 
     const inserted = await db
       .insert(schema.choreCompletions)
@@ -353,6 +347,83 @@ export const undoScreenTimeFn = createServerFn({ method: "POST" })
     });
     if (!row || row.kid.familyId !== familyId) throw new Error("Not found");
     await db.delete(schema.screenTimeEntries).where(eq(schema.screenTimeEntries.id, data.id));
+    return { ok: true as const };
+  });
+
+/**
+ * All entries for a single kid+day. Used by the admin calendar's day-detail
+ * modal so parents can manage (delete) entries from past days. Admin auth
+ * required — kids should never see this surface.
+ */
+export const getKidDayDetailsFn = createServerFn({ method: "GET" })
+  .inputValidator((data: unknown) =>
+    z
+      .object({
+        kidId: z.number().int().positive(),
+        day: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+      })
+      .parse(data),
+  )
+  .handler(async ({ data }) => {
+    const familyId = await authedFamilyIdOrThrow();
+    const { getDbFromEnv } = await import("./env.server");
+    const db = getDbFromEnv();
+
+    const kid = await db.query.kids.findFirst({
+      where: and(eq(schema.kids.id, data.kidId), eq(schema.kids.familyId, familyId)),
+    });
+    if (!kid) throw new Error("Kid not found");
+
+    const [completions, usage, adjustments, incidents] = await Promise.all([
+      db.query.choreCompletions.findMany({
+        where: eq(schema.choreCompletions.kidId, kid.id),
+        with: { chore: true },
+        orderBy: (c, { desc }) => [desc(c.completedAt)],
+      }),
+      db.query.screenTimeEntries.findMany({
+        where: eq(schema.screenTimeEntries.kidId, kid.id),
+        orderBy: (e, { desc }) => [desc(e.usedAt)],
+      }),
+      db.query.balanceAdjustments.findMany({
+        where: eq(schema.balanceAdjustments.kidId, kid.id),
+        orderBy: (a, { desc }) => [desc(a.createdAt)],
+      }),
+      db.query.behaviorIncidents.findMany({
+        where: eq(schema.behaviorIncidents.kidId, kid.id),
+        orderBy: (i, { desc }) => [desc(i.recordedAt)],
+      }),
+    ]);
+
+    return {
+      day: data.day,
+      completions: completions
+        .filter((c) => dayKey(c.completedAt) === data.day)
+        .map((c) => ({
+          id: c.id,
+          choreName: c.chore.name,
+          choreIcon: c.chore.icon,
+          choreType: c.chore.type,
+          minutesAwarded: c.minutesAwarded,
+          completedAt: c.completedAt,
+        })),
+      usage: usage.filter((u) => dayKey(u.usedAt) === data.day),
+      adjustments: adjustments.filter((a) => dayKey(a.createdAt) === data.day),
+      incidents: incidents.filter((i) => dayKey(i.recordedAt) === data.day),
+    };
+  });
+
+export const undoAdjustmentFn = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) => z.object({ id: z.number().int().positive() }).parse(data))
+  .handler(async ({ data }) => {
+    const familyId = await authedFamilyIdOrThrow();
+    const { getDbFromEnv } = await import("./env.server");
+    const db = getDbFromEnv();
+    const row = await db.query.balanceAdjustments.findFirst({
+      where: eq(schema.balanceAdjustments.id, data.id),
+      with: { kid: true },
+    });
+    if (!row || row.kid.familyId !== familyId) throw new Error("Not found");
+    await db.delete(schema.balanceAdjustments).where(eq(schema.balanceAdjustments.id, data.id));
     return { ok: true as const };
   });
 

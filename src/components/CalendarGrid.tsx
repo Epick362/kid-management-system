@@ -6,7 +6,8 @@ export interface CalendarDay {
   /** "YYYY-MM-DD" */
   key: string;
   color: DayColor;
-  choresDoneCount: number;
+  dailyDoneCount: number;
+  weeklyDoneCount: number;
   minutesUsed: number;
 }
 
@@ -16,6 +17,7 @@ interface Props {
   month: number;
   days: CalendarDay[];
   onNavigate?: (year: number, month: number) => void;
+  onDayClick?: (key: string) => void;
 }
 
 const COLOR_CLASSES: Record<DayColor, string> = {
@@ -25,7 +27,7 @@ const COLOR_CLASSES: Record<DayColor, string> = {
   blank: "bg-transparent text-ink-soft",
 };
 
-export function CalendarGrid({ year, month, days, onNavigate }: Props) {
+export function CalendarGrid({ year, month, days, onNavigate, onDayClick }: Props) {
   const total = daysInMonth(year, month);
   const offset = firstWeekdayMondayLead(year, month);
   const dayByKey = new Map(days.map((d) => [d.key, d]));
@@ -81,23 +83,42 @@ export function CalendarGrid({ year, month, days, onNavigate }: Props) {
         {cells.map((cell, idx) => {
           if (!cell) return <div key={idx} className="aspect-square" />;
           const color: DayColor = cell.data?.color ?? "blank";
-          const label =
-            cell.data && cell.data.minutesUsed > 0
-              ? `${cell.day} · ${cell.data.minutesUsed} min`
-              : `${cell.day}`;
-          return (
-            <div
-              key={idx}
-              title={label}
-              className={
-                "aspect-square rounded-md flex flex-col items-center justify-center text-sm font-medium " +
-                COLOR_CLASSES[color]
-              }
-            >
+          const daily = cell.data?.dailyDoneCount ?? 0;
+          const weekly = cell.data?.weeklyDoneCount ?? 0;
+          const used = cell.data?.minutesUsed ?? 0;
+          const label = used > 0 ? `${cell.day} · ${used} min` : `${cell.day}`;
+          const clickable = !!onDayClick && !!cell.data;
+          const baseCls =
+            "aspect-square rounded-md flex flex-col items-center justify-center text-sm font-medium " +
+            COLOR_CLASSES[color];
+          const content = (
+            <>
               <span>{cell.day}</span>
-              {cell.data && cell.data.choresDoneCount > 0 && (
-                <span className="text-[10px] opacity-80">★{cell.data.choresDoneCount}</span>
+              {(daily > 0 || weekly > 0) && (
+                <span className="text-[10px] opacity-90 leading-tight">
+                  {daily > 0 && <span>★{daily}</span>}
+                  {daily > 0 && weekly > 0 && " "}
+                  {weekly > 0 && <span>🏆{weekly}</span>}
+                </span>
               )}
+            </>
+          );
+          if (clickable) {
+            return (
+              <button
+                key={idx}
+                type="button"
+                title={label}
+                onClick={() => onDayClick!(cell.data!.key)}
+                className={baseCls + " hover:ring-2 hover:ring-ink/40 cursor-pointer"}
+              >
+                {content}
+              </button>
+            );
+          }
+          return (
+            <div key={idx} title={label} className={baseCls}>
+              {content}
             </div>
           );
         })}
@@ -107,6 +128,8 @@ export function CalendarGrid({ year, month, days, onNavigate }: Props) {
         <Legend color="green" label={sk.calendar.legend.green} />
         <Legend color="red" label={sk.calendar.legend.red} />
         <Legend color="neutral" label={sk.calendar.legend.neutral} />
+        <span className="flex items-center gap-1.5">★ {sk.calendar.legend.daily}</span>
+        <span className="flex items-center gap-1.5">🏆 {sk.calendar.legend.weekly}</span>
       </div>
     </div>
   );

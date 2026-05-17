@@ -81,6 +81,8 @@ export const sk = {
       completedChore: "Splnil úlohu",
       logScreenTime: "Použil obrazovku",
       adjustBalance: "Manuálna úprava",
+      adjAdd: "Pridať",
+      adjSubtract: "Odobrať",
       logIncident: "Záznam správania",
       incidentCategory: "Kategória",
       incidentNote: "Poznámka",
@@ -164,6 +166,8 @@ export const sk = {
       green: "Splnené",
       red: "Nesplnené alebo prečerpané",
       neutral: "Víkend / voľný deň",
+      daily: "Denná",
+      weekly: "Týždenná výzva",
     },
     months: [
       "Január", "Február", "Marec", "Apríl", "Máj", "Jún",

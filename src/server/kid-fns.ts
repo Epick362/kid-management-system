@@ -17,7 +17,6 @@ import {
   computeBankBalance,
   computeDailyUsed,
   computeDayColor,
-  rollQuestBonus,
   type BankEvent,
   type DayColor,
 } from "./screen-time";
@@ -158,7 +157,9 @@ export const getKidDashboardFn = createServerFn({ method: "GET" })
 export interface CalendarDayPayload {
   key: string;
   color: DayColor;
-  choresDoneCount: number;
+  /** Earning chore completions on this day (split by type for icon display). */
+  dailyDoneCount: number;
+  weeklyDoneCount: number;
   minutesUsed: number;
 }
 
@@ -196,18 +197,27 @@ export const getKidCalendarFn = createServerFn({ method: "GET" })
     const [completions, usage] = await Promise.all([
       db.query.choreCompletions.findMany({
         where: eq(schema.choreCompletions.kidId, kid.id),
+        with: { chore: true },
       }),
       db.query.screenTimeEntries.findMany({
         where: eq(schema.screenTimeEntries.kidId, kid.id),
       }),
     ]);
 
-    // Bucket by dayKey
-    const choresByDay = new Map<string, number>();
+    // Bucket by dayKey, split by chore type — family_duty is NOT counted as
+    // an "achievement" for calendar coloring/stars (per project memory: it's
+    // a rule, not a reward).
+    const dailyByDay = new Map<string, number>();
+    const weeklyByDay = new Map<string, number>();
     for (const c of completions) {
       if (c.completedAt < monthStart || c.completedAt > monthEnd) continue;
       const k = dayKey(c.completedAt);
-      choresByDay.set(k, (choresByDay.get(k) ?? 0) + 1);
+      if (c.chore.type === "earning_daily") {
+        dailyByDay.set(k, (dailyByDay.get(k) ?? 0) + 1);
+      } else if (c.chore.type === "earning_weekly_quest") {
+        weeklyByDay.set(k, (weeklyByDay.get(k) ?? 0) + 1);
+      }
+      // family_duty intentionally skipped
     }
     const usedByDay = new Map<string, number>();
     for (const u of usage) {
@@ -222,15 +232,16 @@ export const getKidCalendarFn = createServerFn({ method: "GET" })
     for (let d = 1; d <= total; d++) {
       const key = `${data.year}-${String(data.month).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
       const dayDate = new Date(Date.UTC(data.year, data.month - 1, d, 12)); // noon to avoid TZ-edge ambiguity
-      const choresDoneCount = choresByDay.get(key) ?? 0;
+      const dailyDoneCount = dailyByDay.get(key) ?? 0;
+      const weeklyDoneCount = weeklyByDay.get(key) ?? 0;
       const minutesUsed = usedByDay.get(key) ?? 0;
       const color = computeDayColor({
         day: dayDate,
-        state: { choresDoneCount, minutesUsed },
+        state: { choresDoneCount: dailyDoneCount + weeklyDoneCount, minutesUsed },
         dailyCapMinutes: family.dailyCapMinutes,
         now,
       });
-      days.push({ key, color, choresDoneCount, minutesUsed });
+      days.push({ key, color, dailyDoneCount, weeklyDoneCount, minutesUsed });
     }
 
     return { year: data.year, month: data.month, days };
@@ -292,13 +303,8 @@ export const kidLogCompletionFn = createServerFn({ method: "POST" })
       if (cnt >= chore.maxPerWeek) return { ok: false as const, error: "weekLimitReached" as const };
     }
 
-    let minutes = 0;
-    if (chore.type === "earning_daily") minutes = chore.rewardMinutes;
-    else if (chore.type === "earning_weekly_quest") {
-      const lo = chore.bonusMin ?? chore.rewardMinutes;
-      const hi = chore.bonusMax ?? chore.rewardMinutes;
-      minutes = rollQuestBonus(lo, hi);
-    }
+    const minutes =
+      chore.type === "family_duty" ? 0 : chore.rewardMinutes;
 
     const inserted = await db
       .insert(schema.choreCompletions)

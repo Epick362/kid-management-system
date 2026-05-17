@@ -6,6 +6,7 @@ import { requireAdminFn } from "../server/auth-fns";
 import { listChoresFn, upsertChoreFn, deleteChoreFn } from "../server/admin-fns";
 import { choreTypes, type ChoreType } from "../server/schema";
 import { ErrorBanner } from "../components/ErrorBanner";
+import { NumberInput } from "../components/NumberInput";
 import { getErrorMessage } from "../lib/errors";
 
 export const Route = createFileRoute("/admin/chores")({
@@ -38,9 +39,9 @@ const blank = (type: ChoreType): EditingChore => ({
   name: "",
   icon: "✨",
   type,
-  rewardMinutes: type === "family_duty" ? 0 : 10,
-  bonusMin: type === "earning_weekly_quest" ? 15 : null,
-  bonusMax: type === "earning_weekly_quest" ? 30 : null,
+  rewardMinutes: type === "family_duty" ? 0 : type === "earning_weekly_quest" ? 30 : 10,
+  bonusMin: null,
+  bonusMax: null,
   maxPerDay: type === "earning_daily" ? 1 : null,
   maxPerWeek: type === "earning_weekly_quest" ? 1 : null,
   requiredForPlay: false,
@@ -119,7 +120,7 @@ function AdminChoresPage() {
                   <div className="flex-1 min-w-0">
                     <div className="font-medium truncate">{c.name}</div>
                     <div className="text-xs text-ink-soft">
-                      {choreLabel(c.type, c.rewardMinutes, c.bonusMin, c.bonusMax)}
+                      {choreLabel(c.type, c.rewardMinutes)}
                     </div>
                   </div>
                   <button
@@ -174,16 +175,8 @@ function AdminChoresPage() {
   );
 }
 
-function choreLabel(
-  type: ChoreType,
-  reward: number,
-  bonusMin: number | null,
-  bonusMax: number | null,
-): string {
+function choreLabel(type: ChoreType, reward: number): string {
   if (type === "family_duty") return sk.admin.chores.groupHeading.family_duty;
-  if (type === "earning_weekly_quest" && bonusMin !== null && bonusMax !== null) {
-    return `${bonusMin}–${bonusMax} min`;
-  }
   return `${reward} min`;
 }
 
@@ -256,57 +249,26 @@ function ChoreForm({
           </select>
         </Field>
 
-        {!isFamily && !isWeekly && (
+        {!isFamily && (
           <Field label={sk.admin.chores.rewardLabel}>
-            <input
-              type="number"
+            <NumberInput
               min={0}
               max={600}
               value={value.rewardMinutes}
-              onChange={(e) =>
-                onChange({ ...value, rewardMinutes: Number(e.target.value) })
-              }
+              onChange={(n) => onChange({ ...value, rewardMinutes: n })}
               className={inputCls}
               required
             />
           </Field>
         )}
 
-        {isWeekly && (
-          <div className="grid grid-cols-2 gap-3">
-            <Field label={sk.admin.chores.bonusMinLabel}>
-              <input
-                type="number"
-                min={0}
-                max={600}
-                value={value.bonusMin ?? 0}
-                onChange={(e) => onChange({ ...value, bonusMin: Number(e.target.value) })}
-                className={inputCls}
-                required
-              />
-            </Field>
-            <Field label={sk.admin.chores.bonusMaxLabel}>
-              <input
-                type="number"
-                min={0}
-                max={600}
-                value={value.bonusMax ?? 0}
-                onChange={(e) => onChange({ ...value, bonusMax: Number(e.target.value) })}
-                className={inputCls}
-                required
-              />
-            </Field>
-          </div>
-        )}
-
         {isDaily && (
           <Field label={sk.admin.chores.maxPerDayLabel}>
-            <input
-              type="number"
+            <NumberInput
               min={1}
               max={20}
               value={value.maxPerDay ?? 1}
-              onChange={(e) => onChange({ ...value, maxPerDay: Number(e.target.value) })}
+              onChange={(n) => onChange({ ...value, maxPerDay: n })}
               className={inputCls}
             />
           </Field>
@@ -314,12 +276,11 @@ function ChoreForm({
 
         {isWeekly && (
           <Field label={sk.admin.chores.maxPerWeekLabel}>
-            <input
-              type="number"
+            <NumberInput
               min={1}
               max={50}
               value={value.maxPerWeek ?? 1}
-              onChange={(e) => onChange({ ...value, maxPerWeek: Number(e.target.value) })}
+              onChange={(n) => onChange({ ...value, maxPerWeek: n })}
               className={inputCls}
             />
           </Field>
@@ -327,12 +288,11 @@ function ChoreForm({
 
         {isFamily && (
           <Field label={sk.admin.chores.maxPerDayLabel}>
-            <input
-              type="number"
+            <NumberInput
               min={1}
               max={20}
               value={value.maxPerDay ?? 1}
-              onChange={(e) => onChange({ ...value, maxPerDay: Number(e.target.value) })}
+              onChange={(n) => onChange({ ...value, maxPerDay: n })}
               className={inputCls}
             />
           </Field>

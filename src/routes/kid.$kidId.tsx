@@ -98,8 +98,8 @@ function KidDashboard() {
       <div className="grid grid-cols-2 gap-2 mb-6 text-center">
         <div className="kid-stat-bank rounded-card p-2.5">
           <div className="text-xs text-ink-soft">{sk.kid.bankLabel}</div>
-          <div className="text-xl font-bold">
-            {Math.max(0, data.balance)}
+          <div className={"text-xl font-bold " + (data.balance < 0 ? "text-peach-deep" : "")}>
+            {data.balance}
             <span className="text-sm font-normal text-ink-soft"> {sk.units.min}</span>
           </div>
         </div>
@@ -147,7 +147,7 @@ function KidDashboard() {
                         <div className="font-semibold text-lg truncate">{c.name}</div>
                         <div className="text-sm text-ink-soft">
                           {required && <span className="mr-1.5">🔒</span>}
-                          {choreReward(c.type, c.rewardMinutes, c.bonusMin, c.bonusMax, c.todayCount, c.maxPerDay)}
+                          {choreReward(c.type, c.rewardMinutes, c.todayCount, c.maxPerDay)}
                         </div>
                       </div>
                       {!disabled && c.type !== "family_duty" && (
@@ -199,16 +199,10 @@ function ErrorToast({ msg, onDismiss }: { msg: string; onDismiss: () => void }) 
 function choreReward(
   type: ChoreType,
   reward: number,
-  bonusMin: number | null,
-  bonusMax: number | null,
   todayCount: number,
   maxPerDay: number | null,
 ): string {
-  let label: string;
-  if (type === "family_duty") label = "—";
-  else if (type === "earning_weekly_quest" && bonusMin !== null && bonusMax !== null) {
-    label = `🎲 ${bonusMin}–${bonusMax} ${sk.units.min}`;
-  } else label = `+${reward} ${sk.units.min}`;
+  let label = type === "family_duty" ? "—" : `+${reward} ${sk.units.min}`;
   if (maxPerDay !== null && maxPerDay > 1) label += ` · ${todayCount}/${maxPerDay}`;
   return label;
 }

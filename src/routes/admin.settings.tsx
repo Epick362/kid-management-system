@@ -9,6 +9,7 @@ import {
   changePasswordFn,
 } from "../server/admin-fns";
 import { ErrorBanner } from "../components/ErrorBanner";
+import { NumberInput } from "../components/NumberInput";
 import { getErrorMessage } from "../lib/errors";
 
 export const Route = createFileRoute("/admin/settings")({
@@ -95,34 +96,31 @@ function AdminSettingsPage() {
           />
         </Field>
         <Field label={sk.admin.settings.dailyCap}>
-          <input
-            type="number"
+          <NumberInput
             min={0}
             max={1440}
             value={dailyCap}
-            onChange={(e) => setDailyCap(Number(e.target.value))}
+            onChange={setDailyCap}
             className={inputCls}
             required
           />
         </Field>
         <Field label={sk.admin.settings.bankCap}>
-          <input
-            type="number"
+          <NumberInput
             min={0}
             max={10_000}
             value={bankCap}
-            onChange={(e) => setBankCap(Number(e.target.value))}
+            onChange={setBankCap}
             className={inputCls}
             required
           />
         </Field>
         <Field label={sk.admin.settings.defaultChoreMinutes}>
-          <input
-            type="number"
+          <NumberInput
             min={0}
             max={600}
             value={defaultChore}
-            onChange={(e) => setDefaultChore(Number(e.target.value))}
+            onChange={setDefaultChore}
             className={inputCls}
             required
           />

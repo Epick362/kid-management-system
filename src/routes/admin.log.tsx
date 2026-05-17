@@ -11,6 +11,7 @@ import {
   addAdjustmentFn,
   undoCompletionFn,
   undoScreenTimeFn,
+  undoAdjustmentFn,
   addIncidentFn,
   undoIncidentFn,
 } from "../server/log-fns";
@@ -21,6 +22,7 @@ import {
   type IncidentCategory,
 } from "../server/schema";
 import { ErrorBanner } from "../components/ErrorBanner";
+import { NumberInput } from "../components/NumberInput";
 import { getErrorMessage } from "../lib/errors";
 
 export const Route = createFileRoute("/admin/log")({
@@ -107,6 +109,18 @@ function AdminLogPage() {
     }
   }
 
+  async function onUndoAdjustment(id: number) {
+    if (!kidId) return;
+    setError(null);
+    try {
+      await undoAdjustmentFn({ data: { id } });
+      await refreshState(kidId);
+      router.invalidate();
+    } catch (err) {
+      setError(getErrorMessage(err, sk.errors.generic));
+    }
+  }
+
   async function onUndoIncident(id: number) {
     if (!kidId) return;
     setError(null);
@@ -153,7 +167,7 @@ function AdminLogPage() {
 
       <div className="grid grid-cols-3 gap-2 mb-6 text-center">
         <Stat label={sk.admin.today.availableLabel} value={`${state.available}`} unit="min" />
-        <Stat label={sk.admin.today.bankLabel} value={`${Math.max(0, state.balance)}`} unit="min" />
+        <Stat label={sk.admin.today.bankLabel} value={`${state.balance}`} unit="min" />
         <Stat label={sk.admin.today.usedTodayLabel} value={`${state.usedToday}`} unit="min" />
       </div>
 
@@ -195,7 +209,7 @@ function AdminLogPage() {
                       <div className="flex-1 min-w-0">
                         <div className="text-sm font-medium truncate">{c.name}</div>
                         <div className="text-xs text-ink-soft">
-                          {choreSubtitle(c.type, c.rewardMinutes, c.bonusMin, c.bonusMax, c.todayCount, c.maxPerDay)}
+                          {choreSubtitle(c.type, c.rewardMinutes, c.todayCount, c.maxPerDay)}
                         </div>
                       </div>
                     </button>
@@ -292,9 +306,7 @@ function AdminLogPage() {
                   +{c.minutesAwarded} min
                 </span>
               )}
-              <button onClick={() => onUndoCompletion(c.id)} className="text-xs text-ink-soft hover:underline">
-                ↶
-              </button>
+              <DeleteBtn onClick={() => onUndoCompletion(c.id)} />
             </li>
           ))}
           {state.todayUsage.map((u) => (
@@ -302,9 +314,7 @@ function AdminLogPage() {
               <span className="text-lg">📱</span>
               <span className="flex-1 text-ink-soft truncate">{u.note ?? sk.admin.log.logScreenTime}</span>
               <span className="text-peach-deep font-medium">−{u.minutes} min</span>
-              <button onClick={() => onUndoScreen(u.id)} className="text-xs text-ink-soft hover:underline">
-                ↶
-              </button>
+              <DeleteBtn onClick={() => onUndoScreen(u.id)} />
             </li>
           ))}
           {state.todayAdjustments.map((a) => (
@@ -315,6 +325,7 @@ function AdminLogPage() {
                 {a.minutes >= 0 ? "+" : ""}
                 {a.minutes} min
               </span>
+              <DeleteBtn onClick={() => onUndoAdjustment(a.id)} />
             </li>
           ))}
           {state.todayIncidents.map((i) => (
@@ -324,9 +335,7 @@ function AdminLogPage() {
                 <div className="font-medium">{sk.incidents.category[i.category as IncidentCategory]}</div>
                 {i.note && <div className="text-xs text-ink-soft truncate">{i.note}</div>}
               </div>
-              <button onClick={() => onUndoIncident(i.id)} className="text-xs text-ink-soft hover:underline">
-                ↶
-              </button>
+              <DeleteBtn onClick={() => onUndoIncident(i.id)} />
             </li>
           ))}
         </ul>
@@ -338,18 +347,26 @@ function AdminLogPage() {
 function choreSubtitle(
   type: ChoreType,
   reward: number,
-  bonusMin: number | null,
-  bonusMax: number | null,
   todayCount: number,
   maxPerDay: number | null,
 ): string {
-  let label: string;
-  if (type === "family_duty") label = sk.admin.chores.groupHeading.family_duty;
-  else if (type === "earning_weekly_quest" && bonusMin !== null && bonusMax !== null) {
-    label = `${bonusMin}–${bonusMax} min`;
-  } else label = `${reward} min`;
+  let label =
+    type === "family_duty" ? sk.admin.chores.groupHeading.family_duty : `${reward} min`;
   if (maxPerDay !== null) label += ` · ${todayCount}/${maxPerDay}`;
   return label;
+}
+
+function DeleteBtn({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label="vymazať"
+      className="shrink-0 rounded-card px-2 py-1 text-sm text-peach-deep hover:bg-peach/50"
+    >
+      🗑
+    </button>
+  );
 }
 
 function Stat({ label, value, unit }: { label: string; value: string; unit: string }) {
@@ -386,12 +403,11 @@ function LogScreenTimeForm({ onSubmit }: { onSubmit: (minutes: number, note?: st
     >
       <label className="block flex-1 min-w-[100px]">
         <span className="block text-sm font-medium mb-1">{sk.admin.log.minutes}</span>
-        <input
-          type="number"
+        <NumberInput
           min={1}
           max={600}
           value={minutes}
-          onChange={(e) => setMinutes(Number(e.target.value))}
+          onChange={setMinutes}
           className={inputCls}
           required
         />
@@ -475,7 +491,8 @@ function IncidentForm({
 }
 
 function AdjustmentForm({ onSubmit }: { onSubmit: (minutes: number, reason?: string) => Promise<void> }) {
-  const [minutes, setMinutes] = useState(15);
+  const [sign, setSign] = useState<"add" | "sub">("add");
+  const [magnitude, setMagnitude] = useState(15);
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -483,43 +500,79 @@ function AdjustmentForm({ onSubmit }: { onSubmit: (minutes: number, reason?: str
     <form
       onSubmit={async (e) => {
         e.preventDefault();
-        if (!minutes) return;
+        if (!magnitude) return;
         setBusy(true);
         try {
-          await onSubmit(minutes, reason || undefined);
+          await onSubmit(sign === "add" ? magnitude : -magnitude, reason || undefined);
           setReason("");
         } finally {
           setBusy(false);
         }
       }}
-      className="flex flex-wrap gap-2 items-end"
+      className="space-y-2"
     >
-      <label className="block flex-1 min-w-[100px]">
-        <span className="block text-sm font-medium mb-1">{sk.admin.log.minutes} (+ / −)</span>
-        <input
-          type="number"
-          min={-600}
-          max={600}
-          value={minutes}
-          onChange={(e) => setMinutes(Number(e.target.value))}
-          className={inputCls}
-          required
-        />
-      </label>
-      <label className="block flex-[2] min-w-[140px]">
-        <span className="block text-sm font-medium mb-1">{sk.admin.log.reason}</span>
-        <input
-          type="text"
-          value={reason}
-          onChange={(e) => setReason(e.target.value)}
-          className={inputCls}
-          placeholder={sk.admin.log.reasonPlaceholder}
-          maxLength={200}
-        />
-      </label>
-      <button type="submit" disabled={busy || minutes === 0} className={primaryBtn}>
-        {sk.admin.log.log}
-      </button>
+      <div className="inline-flex rounded-card overflow-hidden border border-ink-soft/20" role="group">
+        <button
+          type="button"
+          onClick={() => setSign("add")}
+          className={
+            "px-4 py-2 text-sm font-medium transition-colors " +
+            (sign === "add"
+              ? "bg-mint-deep text-white"
+              : "bg-white/70 text-ink-soft hover:bg-white")
+          }
+          aria-pressed={sign === "add"}
+        >
+          + {sk.admin.log.adjAdd}
+        </button>
+        <button
+          type="button"
+          onClick={() => setSign("sub")}
+          className={
+            "px-4 py-2 text-sm font-medium transition-colors " +
+            (sign === "sub"
+              ? "bg-peach-deep text-white"
+              : "bg-white/70 text-ink-soft hover:bg-white")
+          }
+          aria-pressed={sign === "sub"}
+        >
+          − {sk.admin.log.adjSubtract}
+        </button>
+      </div>
+      <div className="flex flex-wrap gap-2 items-end">
+        <label className="block flex-1 min-w-[100px]">
+          <span className="block text-sm font-medium mb-1">{sk.admin.log.minutes}</span>
+          <NumberInput
+            min={1}
+            max={600}
+            value={magnitude}
+            onChange={setMagnitude}
+            className={inputCls}
+            required
+          />
+        </label>
+        <label className="block flex-[2] min-w-[140px]">
+          <span className="block text-sm font-medium mb-1">{sk.admin.log.reason}</span>
+          <input
+            type="text"
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            className={inputCls}
+            placeholder={sk.admin.log.reasonPlaceholder}
+            maxLength={200}
+          />
+        </label>
+        <button
+          type="submit"
+          disabled={busy || magnitude === 0}
+          className={
+            "rounded-card text-white px-5 py-2 font-medium disabled:opacity-50 " +
+            (sign === "add" ? "bg-mint-deep hover:bg-mint" : "bg-peach-deep hover:bg-peach")
+          }
+        >
+          {sk.admin.log.log}
+        </button>
+      </div>
     </form>
   );
 }
