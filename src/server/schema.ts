@@ -18,6 +18,10 @@ export const families = sqliteTable("families", {
     .default(sql`(unixepoch('subsec') * 1000)`),
 });
 
+/** Visual theme applied to the kid dashboard. New themes added here + in CSS. */
+export const kidThemes = ["default", "minecraft"] as const;
+export type KidTheme = (typeof kidThemes)[number];
+
 export const kids = sqliteTable(
   "kids",
   {
@@ -28,6 +32,7 @@ export const kids = sqliteTable(
     name: text("name").notNull(),
     color: text("color").notNull().default("mint"),
     avatarEmoji: text("avatar_emoji").notNull().default("🙂"),
+    theme: text("theme", { enum: kidThemes }).notNull().default("default"),
     sortOrder: integer("sort_order").notNull().default(0),
     active: integer("active", { mode: "boolean" }).notNull().default(true),
   },
@@ -53,6 +58,12 @@ export const chores = sqliteTable(
     bonusMax: integer("bonus_max"),
     maxPerDay: integer("max_per_day"),
     maxPerWeek: integer("max_per_week"),
+    /**
+     * If true (only meaningful for `family_duty`), the kid view shows a "do this
+     * before playing" gate until today's instance is logged. The screen-time log
+     * shows a soft warning but does not block — parent override is allowed.
+     */
+    requiredForPlay: integer("required_for_play", { mode: "boolean" }).notNull().default(false),
     active: integer("active", { mode: "boolean" }).notNull().default(true),
     sortOrder: integer("sort_order").notNull().default(0),
   },
@@ -120,6 +131,36 @@ export const balanceAdjustments = sqliteTable(
   (t) => [index("idx_adj_kid_time").on(t.kidId, t.createdAt)],
 );
 
+/**
+ * Parent-only log of non-rewarded behavior incidents (forgot homework, argued, etc.).
+ * Intentionally does NOT affect minutes — see project memory: no loss aversion.
+ * Used for: weekly review with the kid, and surfacing patterns to parents.
+ */
+export const incidentCategories = [
+  "homework_missed",
+  "argument",
+  "disrespect",
+  "tantrum",
+  "other",
+] as const;
+export type IncidentCategory = (typeof incidentCategories)[number];
+
+export const behaviorIncidents = sqliteTable(
+  "behavior_incidents",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    kidId: integer("kid_id")
+      .notNull()
+      .references(() => kids.id, { onDelete: "cascade" }),
+    category: text("category", { enum: incidentCategories }).notNull(),
+    note: text("note"),
+    recordedAt: integer("recorded_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch('subsec') * 1000)`),
+  },
+  (t) => [index("idx_incidents_kid_time").on(t.kidId, t.recordedAt)],
+);
+
 export const adminSessions = sqliteTable("admin_sessions", {
   id: text("id").primaryKey(),
   familyId: integer("family_id")
@@ -163,6 +204,10 @@ export const balanceAdjustmentsRelations = relations(balanceAdjustments, ({ one 
   kid: one(kids, { fields: [balanceAdjustments.kidId], references: [kids.id] }),
 }));
 
+export const behaviorIncidentsRelations = relations(behaviorIncidents, ({ one }) => ({
+  kid: one(kids, { fields: [behaviorIncidents.kidId], references: [kids.id] }),
+}));
+
 /* ---------- type exports ---------- */
 
 export type Family = typeof families.$inferSelect;
@@ -171,3 +216,4 @@ export type Chore = typeof chores.$inferSelect;
 export type ChoreCompletion = typeof choreCompletions.$inferSelect;
 export type ScreenTimeEntry = typeof screenTimeEntries.$inferSelect;
 export type BalanceAdjustment = typeof balanceAdjustments.$inferSelect;
+export type BehaviorIncident = typeof behaviorIncidents.$inferSelect;

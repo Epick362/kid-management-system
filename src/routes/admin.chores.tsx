@@ -28,6 +28,7 @@ interface EditingChore {
   bonusMax: number | null;
   maxPerDay: number | null;
   maxPerWeek: number | null;
+  requiredForPlay: boolean;
   active: boolean;
 }
 
@@ -40,6 +41,7 @@ const blank = (type: ChoreType): EditingChore => ({
   bonusMax: type === "earning_weekly_quest" ? 30 : null,
   maxPerDay: type === "earning_daily" ? 1 : null,
   maxPerWeek: type === "earning_weekly_quest" ? 1 : null,
+  requiredForPlay: false,
   active: true,
 });
 
@@ -117,6 +119,7 @@ function AdminChoresPage() {
                         bonusMax: c.bonusMax,
                         maxPerDay: c.maxPerDay,
                         maxPerWeek: c.maxPerWeek,
+                        requiredForPlay: c.requiredForPlay,
                         active: c.active,
                       })
                     }
@@ -307,6 +310,23 @@ function ChoreForm({
               className={inputCls}
             />
           </Field>
+        )}
+
+        {isFamily && (
+          <label className="flex items-start gap-2">
+            <input
+              type="checkbox"
+              checked={value.requiredForPlay}
+              onChange={(e) => onChange({ ...value, requiredForPlay: e.target.checked })}
+              className="mt-1"
+            />
+            <span>
+              <span className="block">{sk.admin.chores.requiredForPlayLabel}</span>
+              <span className="block text-xs text-ink-soft">
+                {sk.admin.chores.requiredForPlayHint}
+              </span>
+            </span>
+          </label>
         )}
 
         <label className="flex items-center gap-2">

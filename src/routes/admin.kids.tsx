@@ -4,6 +4,7 @@ import { AdminShell } from "../components/AdminShell";
 import { sk } from "../lib/sk";
 import { requireAdminFn } from "../server/auth-fns";
 import { listKidsFn, upsertKidFn, deleteKidFn } from "../server/admin-fns";
+import { kidThemes, type KidTheme } from "../server/schema";
 
 export const Route = createFileRoute("/admin/kids")({
   beforeLoad: () => requireAdminFn(),
@@ -22,6 +23,7 @@ interface EditingKid {
   name: string;
   emoji: string;
   color: string;
+  theme: KidTheme;
   active: boolean;
 }
 
@@ -42,6 +44,7 @@ function AdminKidsPage() {
         name: editing.name,
         emoji: editing.emoji,
         color: editing.color,
+        theme: editing.theme,
         active: editing.active,
       },
     });
@@ -61,7 +64,7 @@ function AdminKidsPage() {
         <h1 className="text-2xl font-bold">{sk.admin.kids.heading}</h1>
         <button
           onClick={() =>
-            setEditing({ name: "", emoji: "🙂", color: "mint", active: true })
+            setEditing({ name: "", emoji: "🙂", color: "mint", theme: "default", active: true })
           }
           className={primaryBtn}
         >
@@ -90,6 +93,7 @@ function AdminKidsPage() {
                   name: k.name,
                   emoji: k.avatarEmoji,
                   color: k.color,
+                  theme: k.theme,
                   active: k.active,
                 })
               }
@@ -192,6 +196,21 @@ function KidForm({
               />
             ))}
           </div>
+        </label>
+
+        <label className="block">
+          <span className="block text-sm font-medium mb-1">{sk.admin.kids.themeLabel}</span>
+          <select
+            value={value.theme}
+            onChange={(e) => onChange({ ...value, theme: e.target.value as KidTheme })}
+            className={inputCls}
+          >
+            {kidThemes.map((t) => (
+              <option key={t} value={t}>
+                {sk.admin.kids.themeOptions[t]}
+              </option>
+            ))}
+          </select>
         </label>
 
         <label className="flex items-center gap-2">

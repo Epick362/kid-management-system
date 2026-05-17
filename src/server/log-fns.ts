@@ -183,6 +183,18 @@ export const getKidLogStateFn = createServerFn({ method: "GET" })
     });
     const todayAdjFiltered = todayAdjustments.filter((a) => dayKey(a.createdAt) === today);
 
+    const todayIncidentRows = await db.query.behaviorIncidents.findMany({
+      where: eq(schema.behaviorIncidents.kidId, kid.id),
+      orderBy: (i, { desc }) => [desc(i.recordedAt)],
+      limit: 50,
+    });
+    const todayIncidents = todayIncidentRows.filter((i) => dayKey(i.recordedAt) === today);
+
+    // Unmet required-for-play family duties today (only family_duty chores can be required)
+    const unmetRequired = perChore.filter(
+      (c) => c.requiredForPlay && c.type === "family_duty" && c.todayCount === 0,
+    );
+
     return {
       kid,
       family: {
@@ -203,6 +215,8 @@ export const getKidLogStateFn = createServerFn({ method: "GET" })
       })),
       todayUsage: todayUsageFiltered,
       todayAdjustments: todayAdjFiltered,
+      todayIncidents,
+      unmetRequired: unmetRequired.map((c) => ({ id: c.id, name: c.name, icon: c.icon })),
     };
   });
 
@@ -367,6 +381,51 @@ export const addAdjustmentFn = createServerFn({ method: "POST" })
       .returning({ id: schema.balanceAdjustments.id });
 
     return { ok: true as const, id: inserted[0]!.id };
+  });
+
+/* ──────────────────── behavior incidents ──────────────────── */
+
+export const addIncidentFn = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) =>
+    z
+      .object({
+        kidId: z.number().int().positive(),
+        category: z.enum(schema.incidentCategories),
+        note: z.string().max(500).optional(),
+      })
+      .parse(data),
+  )
+  .handler(async ({ data }) => {
+    const familyId = await authedFamilyIdOrThrow();
+    const { getDbFromEnv } = await import("./env.server");
+    const db = getDbFromEnv();
+
+    const kid = await db.query.kids.findFirst({
+      where: and(eq(schema.kids.id, data.kidId), eq(schema.kids.familyId, familyId)),
+    });
+    if (!kid) throw new Error("Kid not found");
+
+    const inserted = await db
+      .insert(schema.behaviorIncidents)
+      .values({ kidId: kid.id, category: data.category, note: data.note ?? null })
+      .returning({ id: schema.behaviorIncidents.id });
+
+    return { ok: true as const, id: inserted[0]!.id };
+  });
+
+export const undoIncidentFn = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) => z.object({ id: z.number().int().positive() }).parse(data))
+  .handler(async ({ data }) => {
+    const familyId = await authedFamilyIdOrThrow();
+    const { getDbFromEnv } = await import("./env.server");
+    const db = getDbFromEnv();
+    const row = await db.query.behaviorIncidents.findFirst({
+      where: eq(schema.behaviorIncidents.id, data.id),
+      with: { kid: true },
+    });
+    if (!row || row.kid.familyId !== familyId) throw new Error("Not found");
+    await db.delete(schema.behaviorIncidents).where(eq(schema.behaviorIncidents.id, data.id));
+    return { ok: true as const };
   });
 
 // Silence unused imports warning

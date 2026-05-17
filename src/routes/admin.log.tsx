@@ -11,8 +11,15 @@ import {
   addAdjustmentFn,
   undoCompletionFn,
   undoScreenTimeFn,
+  addIncidentFn,
+  undoIncidentFn,
 } from "../server/log-fns";
-import { choreTypes, type ChoreType } from "../server/schema";
+import {
+  choreTypes,
+  incidentCategories,
+  type ChoreType,
+  type IncidentCategory,
+} from "../server/schema";
 
 export const Route = createFileRoute("/admin/log")({
   beforeLoad: () => requireAdminFn(),
@@ -76,6 +83,13 @@ function AdminLogPage() {
   async function onUndoScreen(id: number) {
     if (!kidId) return;
     await undoScreenTimeFn({ data: { id } });
+    await refreshState(kidId);
+    router.invalidate();
+  }
+
+  async function onUndoIncident(id: number) {
+    if (!kidId) return;
+    await undoIncidentFn({ data: { id } });
     await refreshState(kidId);
     router.invalidate();
   }
@@ -169,9 +183,35 @@ function AdminLogPage() {
       {/* Screen time */}
       <section className="mb-8">
         <h2 className="text-lg font-semibold mb-3">{sk.admin.log.logScreenTime}</h2>
+        {state.unmetRequired.length > 0 && (
+          <div className="bg-butter/60 border border-butter-deep/40 rounded-card p-3 mb-3 text-sm">
+            <div className="font-semibold mb-1">⚠️ {sk.admin.log.gateWarningTitle}</div>
+            <div className="text-ink-soft mb-1.5">{sk.admin.log.gateWarningBody}</div>
+            <ul className="space-y-0.5">
+              {state.unmetRequired.map((c) => (
+                <li key={c.id}>
+                  <span className="mr-1.5">{c.icon}</span>
+                  {c.name}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
         <LogScreenTimeForm
           onSubmit={async (minutes, note) => {
             await logScreenTimeFn({ data: { kidId, minutes, note } });
+            await refreshState(kidId);
+            router.invalidate();
+          }}
+        />
+      </section>
+
+      {/* Behavior incidents (parent-only; no minute impact) */}
+      <section className="mb-8">
+        <h2 className="text-lg font-semibold mb-3">{sk.admin.log.logIncident}</h2>
+        <IncidentForm
+          onSubmit={async (category, note) => {
+            await addIncidentFn({ data: { kidId, category, note } });
             await refreshState(kidId);
             router.invalidate();
           }}
@@ -195,7 +235,8 @@ function AdminLogPage() {
         <h2 className="text-lg font-semibold mb-3">{sk.admin.log.todayEntries}</h2>
         {state.todayCompletions.length === 0 &&
           state.todayUsage.length === 0 &&
-          state.todayAdjustments.length === 0 && (
+          state.todayAdjustments.length === 0 &&
+          state.todayIncidents.length === 0 && (
             <p className="text-ink-soft text-sm">{sk.admin.log.noTodayEntries}</p>
           )}
 
@@ -232,6 +273,18 @@ function AdminLogPage() {
                 {a.minutes >= 0 ? "+" : ""}
                 {a.minutes} min
               </span>
+            </li>
+          ))}
+          {state.todayIncidents.map((i) => (
+            <li key={`i-${i.id}`} className="flex items-start gap-2 bg-butter/40 rounded-card px-3 py-2">
+              <span className="text-lg">📝</span>
+              <div className="flex-1 min-w-0">
+                <div className="font-medium">{sk.incidents.category[i.category as IncidentCategory]}</div>
+                {i.note && <div className="text-xs text-ink-soft truncate">{i.note}</div>}
+              </div>
+              <button onClick={() => onUndoIncident(i.id)} className="text-xs text-ink-soft hover:underline">
+                ↶
+              </button>
             </li>
           ))}
         </ul>
@@ -315,6 +368,66 @@ function LogScreenTimeForm({ onSubmit }: { onSubmit: (minutes: number, note?: st
       <button type="submit" disabled={busy} className={primaryBtn}>
         {sk.admin.log.log}
       </button>
+    </form>
+  );
+}
+
+function IncidentForm({
+  onSubmit,
+}: {
+  onSubmit: (category: IncidentCategory, note?: string) => Promise<void>;
+}) {
+  const [category, setCategory] = useState<IncidentCategory>("homework_missed");
+  const [note, setNote] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  return (
+    <form
+      onSubmit={async (e) => {
+        e.preventDefault();
+        setBusy(true);
+        try {
+          await onSubmit(category, note || undefined);
+          setNote("");
+        } finally {
+          setBusy(false);
+        }
+      }}
+      className="space-y-2"
+    >
+      <div className="flex flex-wrap gap-1.5">
+        {incidentCategories.map((c) => (
+          <button
+            key={c}
+            type="button"
+            onClick={() => setCategory(c)}
+            className={
+              "px-3 py-1.5 rounded-card text-sm " +
+              (category === c
+                ? "bg-butter-deep text-ink font-medium"
+                : "bg-white/70 text-ink-soft hover:bg-white")
+            }
+          >
+            {sk.incidents.category[c]}
+          </button>
+        ))}
+      </div>
+      <div className="flex flex-wrap gap-2 items-end">
+        <label className="block flex-1 min-w-[180px]">
+          <span className="block text-sm font-medium mb-1">{sk.admin.log.incidentNote}</span>
+          <input
+            type="text"
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            className={inputCls}
+            placeholder={sk.incidents.notePlaceholder}
+            maxLength={500}
+          />
+        </label>
+        <button type="submit" disabled={busy} className={primaryBtn}>
+          {sk.admin.log.incidentSave}
+        </button>
+      </div>
     </form>
   );
 }

@@ -16,7 +16,7 @@ import { z } from "zod";
 
 import { SESSION_COOKIE, getSessionFamilyId, hashPassword } from "./auth";
 import * as schema from "./schema";
-import { choreTypes } from "./schema";
+import { choreTypes, kidThemes } from "./schema";
 
 async function authedFamilyIdOrThrow(): Promise<number> {
   const { getDbFromEnv } = await import("./env.server");
@@ -45,6 +45,7 @@ const kidInputSchema = z.object({
   name: z.string().min(1).max(40),
   emoji: z.string().min(1).max(8).default("🙂"),
   color: z.string().min(1).max(20).default("mint"),
+  theme: z.enum(kidThemes).default("default"),
   active: z.boolean().default(true),
 });
 
@@ -62,6 +63,7 @@ export const upsertKidFn = createServerFn({ method: "POST" })
           name: data.name,
           avatarEmoji: data.emoji,
           color: data.color,
+          theme: data.theme,
           active: data.active,
         })
         .where(and(eq(schema.kids.id, data.id), eq(schema.kids.familyId, familyId)));
@@ -74,6 +76,7 @@ export const upsertKidFn = createServerFn({ method: "POST" })
         name: data.name,
         avatarEmoji: data.emoji,
         color: data.color,
+        theme: data.theme,
         active: data.active,
         sortOrder: 0,
       })
@@ -119,6 +122,7 @@ const choreInputSchema = z
     bonusMax: z.number().int().min(0).max(600).nullable().default(null),
     maxPerDay: z.number().int().min(1).max(20).nullable().default(null),
     maxPerWeek: z.number().int().min(1).max(50).nullable().default(null),
+    requiredForPlay: z.boolean().default(false),
     active: z.boolean().default(true),
   })
   .refine(
@@ -140,6 +144,8 @@ export const upsertChoreFn = createServerFn({ method: "POST" })
 
     // family_duty chores must have 0 reward (enforced server-side regardless of client input)
     const reward = data.type === "family_duty" ? 0 : data.rewardMinutes;
+    // required_for_play is only meaningful for family_duty
+    const required = data.type === "family_duty" ? data.requiredForPlay : false;
 
     if (data.id) {
       await db
@@ -153,6 +159,7 @@ export const upsertChoreFn = createServerFn({ method: "POST" })
           bonusMax: data.bonusMax,
           maxPerDay: data.maxPerDay,
           maxPerWeek: data.maxPerWeek,
+          requiredForPlay: required,
           active: data.active,
         })
         .where(and(eq(schema.chores.id, data.id), eq(schema.chores.familyId, familyId)));
@@ -170,6 +177,7 @@ export const upsertChoreFn = createServerFn({ method: "POST" })
         bonusMax: data.bonusMax,
         maxPerDay: data.maxPerDay,
         maxPerWeek: data.maxPerWeek,
+        requiredForPlay: required,
         active: data.active,
         sortOrder: 100,
       })

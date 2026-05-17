@@ -44,3 +44,151 @@
     cursor: pointer;
   }
 }
+
+/* ───────────────────── kid-view theming ─────────────────────
+ * `.kid-root` wraps the kid dashboard. Each theme (default / minecraft)
+ * overrides the same set of hooks: background, ring colors, chore card
+ * surfaces, headings. Layout/markup stays identical.
+ * Default theme inherits the global pastel look.
+ */
+.kid-root .kid-ring-track { color: var(--color-mint); opacity: 0.3; }
+.kid-root .kid-ring-fill { color: var(--color-mint-deep); }
+.kid-root.theme-default .kid-stat-bank { background-color: color-mix(in srgb, var(--color-lavender) 40%, transparent); }
+.kid-root.theme-default .kid-stat-used { background-color: color-mix(in srgb, var(--color-peach) 40%, transparent); }
+
+/* ─────────────── Minecraft theme ───────────────
+ * Aesthetic-only inspiration: tileable grass-top / dirt block SVG, chunky
+ * monospace headings, pixel-art buttons with hard bevel shadows, XP-style
+ * ring. No Minecraft assets are used — pure CSS + inline SVG so the PWA
+ * stays offline-capable and there are no IP concerns.
+ */
+.kid-root.theme-minecraft {
+  --mc-grass: #5fa14a;
+  --mc-grass-light: #71b85a;
+  --mc-grass-dark: #4d8d3e;
+  --mc-dirt: #8b6644;
+  --mc-dirt-dark: #71523a;
+  --mc-dirt-light: #a2785a;
+  --mc-stone: #7e7e7e;
+  --mc-stone-dark: #5a5a5a;
+  --mc-wood: #a07550;
+  --mc-wood-dark: #6e4d33;
+  --mc-sky: #88c8ff;
+  --mc-xp: #80ff20;
+  --mc-xp-dark: #408000;
+  --mc-diamond: #4ee7e7;
+  --mc-redstone: #c81d1d;
+  --mc-ink: #1a1a1a;
+
+  color: var(--mc-ink);
+  /* tileable 16px grass-top + dirt block, scaled up 4× via background-size */
+  background-color: var(--mc-dirt);
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' shape-rendering='crispEdges'><rect width='16' height='4' fill='%235fa14a'/><rect x='1' y='0' width='1' height='1' fill='%2371b85a'/><rect x='5' y='0' width='1' height='1' fill='%2371b85a'/><rect x='9' y='0' width='1' height='1' fill='%2371b85a'/><rect x='12' y='0' width='1' height='1' fill='%2371b85a'/><rect x='3' y='1' width='1' height='1' fill='%234d8d3e'/><rect x='7' y='1' width='1' height='1' fill='%234d8d3e'/><rect x='11' y='1' width='1' height='1' fill='%234d8d3e'/><rect x='14' y='2' width='1' height='1' fill='%234d8d3e'/><rect y='4' width='16' height='12' fill='%238b6644'/><rect x='2' y='5' width='2' height='1' fill='%2371523a'/><rect x='10' y='5' width='1' height='2' fill='%2371523a'/><rect x='5' y='7' width='1' height='2' fill='%23a2785a'/><rect x='13' y='8' width='1' height='1' fill='%2371523a'/><rect x='1' y='10' width='3' height='1' fill='%2371523a'/><rect x='7' y='11' width='2' height='2' fill='%23a2785a'/><rect x='12' y='12' width='2' height='1' fill='%2371523a'/><rect x='4' y='13' width='1' height='2' fill='%23a2785a'/><rect x='9' y='14' width='1' height='1' fill='%2371523a'/></svg>");
+  background-size: 64px 64px;
+  background-repeat: repeat;
+  image-rendering: pixelated;
+  font-family: ui-monospace, "SFMono-Regular", "Consolas", "Liberation Mono", monospace;
+}
+
+.kid-root.theme-minecraft .kid-title,
+.kid-root.theme-minecraft h2,
+.kid-root.theme-minecraft h3 {
+  font-family: ui-monospace, "SFMono-Regular", "Consolas", monospace;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #ffffff;
+  text-shadow:
+    2px 2px 0 #3f3f3f,
+    -1px 0 0 #3f3f3f,
+    0 -1px 0 #3f3f3f;
+}
+
+/* Chunky pixel-style surfaces for cards. Tailwind's rounded-card is overridden to 0. */
+.kid-root.theme-minecraft .rounded-card { border-radius: 0; }
+
+.kid-root.theme-minecraft .kid-gate {
+  background-color: #f5d24a;
+  border: 4px solid #1a1a1a !important;
+  box-shadow:
+    inset 2px 2px 0 #fff8c5,
+    inset -2px -2px 0 #c69a1c,
+    4px 4px 0 rgba(0,0,0,0.4);
+  color: var(--mc-ink);
+}
+.kid-root.theme-minecraft .kid-gate .text-ink-soft { color: #3a2c00; }
+
+.kid-root.theme-minecraft .kid-stat-bank,
+.kid-root.theme-minecraft .kid-stat-used {
+  background-color: var(--mc-stone);
+  border: 3px solid var(--mc-ink);
+  box-shadow:
+    inset 2px 2px 0 #a8a8a8,
+    inset -2px -2px 0 var(--mc-stone-dark);
+  color: #ffffff;
+}
+.kid-root.theme-minecraft .kid-stat-bank .text-ink-soft,
+.kid-root.theme-minecraft .kid-stat-used .text-ink-soft {
+  color: #d0d0d0;
+}
+
+/* Chore buttons → "inventory slot" look */
+.kid-root.theme-minecraft .kid-chore {
+  background-color: #c6c6c6 !important;
+  border: 3px solid var(--mc-ink);
+  border-radius: 0 !important;
+  box-shadow:
+    inset 2px 2px 0 #ffffff,
+    inset -2px -2px 0 #555555,
+    3px 3px 0 rgba(0,0,0,0.35);
+  color: var(--mc-ink);
+  font-weight: 700;
+}
+.kid-root.theme-minecraft .kid-chore:active:not(:disabled) {
+  box-shadow:
+    inset -2px -2px 0 #ffffff,
+    inset 2px 2px 0 #555555;
+  transform: translate(2px, 2px);
+}
+.kid-root.theme-minecraft .kid-chore:disabled {
+  background-color: #888 !important;
+  box-shadow: inset 2px 2px 0 #aaa, inset -2px -2px 0 #555;
+  color: #444;
+}
+.kid-root.theme-minecraft .kid-chore .text-ink-soft { color: #3a3a3a; }
+.kid-root.theme-minecraft .kid-chore.bg-butter,
+.kid-root.theme-minecraft .kid-chore[class*="bg-butter"] {
+  background-color: #f5d24a !important;
+  box-shadow:
+    inset 2px 2px 0 #fff8c5,
+    inset -2px -2px 0 #c69a1c,
+    3px 3px 0 rgba(0,0,0,0.35);
+}
+
+/* XP-style ring: stone track + bright green fill, with pixel-edge feel. */
+.kid-root.theme-minecraft .kid-ring-track { color: var(--mc-stone-dark); opacity: 1; }
+.kid-root.theme-minecraft .kid-ring-fill { color: var(--mc-xp); }
+.kid-root.theme-minecraft .kid-ring-number { color: var(--mc-xp); text-shadow: 2px 2px 0 #1a1a1a; }
+.kid-root.theme-minecraft .kid-ring-locked .kid-ring-fill { color: var(--mc-redstone); }
+
+/* Section heads + section content over the textured bg gets a slight scrim */
+.kid-root.theme-minecraft section h3 {
+  display: inline-block;
+  background-color: rgba(0,0,0,0.55);
+  padding: 0.15rem 0.5rem;
+  color: #ffffff;
+}
+
+/* Calendar inside theme: white scrim so it stays readable over dirt */
+.kid-root.theme-minecraft .calendar-grid,
+.kid-root.theme-minecraft section:has(> *:nth-child(2)) {
+  /* leaves layout alone — just ensures contrast on dark bg via children */
+}
+.kid-root.theme-minecraft .text-ink-soft { color: #e8e8e8; }
+.kid-root.theme-minecraft .text-ink { color: #ffffff; }
+
+/* Celebrate overlay reads as XP orb pop */
+.kid-root.theme-minecraft + * .bg-cream,
+body:has(.theme-minecraft) .bg-cream {
+  /* leave celebrate untouched globally; theme only scopes to kid-root */
+}

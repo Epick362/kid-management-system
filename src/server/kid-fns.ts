@@ -125,6 +125,11 @@ export const getKidDashboardFn = createServerFn({ method: "GET" })
       return { ...c, todayCount, weekCount, dayCapReached, weekCapReached };
     });
 
+    // Required-for-play family duties not yet logged today → gate the kid view.
+    const unmetRequired = enrichedChores
+      .filter((c) => c.requiredForPlay && c.type === "family_duty" && c.todayCount === 0)
+      .map((c) => ({ id: c.id, name: c.name, icon: c.icon }));
+
     return {
       kid,
       family: {
@@ -135,6 +140,7 @@ export const getKidDashboardFn = createServerFn({ method: "GET" })
       balance,
       usedToday,
       available,
+      unmetRequired,
       todayCompletions: todayCompletions.map((c) => ({
         id: c.id,
         choreName: c.chore.name,
