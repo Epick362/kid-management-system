@@ -253,6 +253,8 @@ export const kidLogCompletionFn = createServerFn({ method: "POST" })
       .object({
         kidId: z.number().int().positive(),
         choreId: z.number().int().positive(),
+        /** Required if the chore has `manualMinutes: true`. Ignored otherwise. */
+        minutes: z.number().int().min(0).max(600).optional(),
       })
       .parse(data),
   )
@@ -304,7 +306,11 @@ export const kidLogCompletionFn = createServerFn({ method: "POST" })
     }
 
     const minutes =
-      chore.type === "family_duty" ? 0 : chore.rewardMinutes;
+      chore.type === "family_duty"
+        ? 0
+        : chore.manualMinutes
+          ? (data.minutes ?? 0)
+          : chore.rewardMinutes;
 
     const inserted = await db
       .insert(schema.choreCompletions)

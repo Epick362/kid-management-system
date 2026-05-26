@@ -1,17 +1,20 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
+import { useEffect } from "react";
 import { AdminShell } from "../components/AdminShell";
 import { sk } from "../lib/sk";
 import { requireAdminFn } from "../server/auth-fns";
 import { getTodayOverviewFn } from "../server/log-fns";
+import { installTokenArgFromLocation } from "../lib/install-token";
 
 export const Route = createFileRoute("/admin/")({
-  beforeLoad: () => requireAdminFn(),
+  beforeLoad: ({ location }) => requireAdminFn(installTokenArgFromLocation(location)),
   loader: () => getTodayOverviewFn(),
   component: AdminHome,
 });
 
 function AdminHome() {
   const { kids } = Route.useLoaderData();
+  useAutoRefresh();
 
   if (kids.length === 0) {
     return (
@@ -79,6 +82,28 @@ function AdminHome() {
       </div>
     </AdminShell>
   );
+}
+
+function useAutoRefresh() {
+  const router = useRouter();
+  useEffect(() => {
+    const TICK_MS = 15_000;
+    const tick = () => {
+      if (document.visibilityState !== "visible") return;
+      router.invalidate();
+    };
+    const id = window.setInterval(tick, TICK_MS);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") router.invalidate();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", onVisible);
+    return () => {
+      window.clearInterval(id);
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", onVisible);
+    };
+  }, [router]);
 }
 
 function Stat({ label, value, accent }: { label: string; value: number; accent: "mint" | "lavender" | "peach" }) {

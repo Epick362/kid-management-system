@@ -17,15 +17,47 @@ import * as schema from "./schema";
 
 /* ──────────────────── shared server-side auth check ──────────────────── */
 
-/** Throws a redirect to /admin/login if no valid session. Returns familyId otherwise. */
-export const requireAdminFn = createServerFn({ method: "GET" }).handler(async () => {
-  const { getDbFromEnv } = await import("./env.server");
-  const db = getDbFromEnv();
-  const token = getCookie(SESSION_COOKIE);
-  const familyId = await getSessionFamilyId(db, token);
-  if (!familyId) throw redirect({ to: "/admin/login" });
-  return { familyId };
-});
+/**
+ * Throws a redirect to /admin/login if no valid session. Returns familyId
+ * otherwise. If `installToken` is passed and no session cookie is valid,
+ * the token is consumed: a fresh session is minted and the cookie is set,
+ * which is how a bookmarked `/admin?install=<token>` URL re-authenticates
+ * itself after iOS strips the standalone-PWA cookie jar.
+ */
+export const requireAdminFn = createServerFn({ method: "GET" })
+  .inputValidator((data: unknown) =>
+    z.object({ installToken: z.string().min(8).max(200).optional() }).parse(data ?? {}),
+  )
+  .handler(async ({ data }) => {
+    const { getDbFromEnv, isProduction } = await import("./env.server");
+    const db = getDbFromEnv();
+    const sessionToken = getCookie(SESSION_COOKIE);
+    let familyId = await getSessionFamilyId(db, sessionToken);
+
+    if (!familyId && data.installToken) {
+      const row = await db.query.adminInstallTokens.findFirst({
+        where: eq(schema.adminInstallTokens.id, data.installToken),
+      });
+      if (row) {
+        familyId = row.familyId;
+        await db
+          .update(schema.adminInstallTokens)
+          .set({ lastUsedAt: new Date() })
+          .where(eq(schema.adminInstallTokens.id, row.id));
+        const { id, expiresAt } = await createSession(db, familyId);
+        setCookie(SESSION_COOKIE, id, {
+          httpOnly: true,
+          sameSite: "lax",
+          secure: isProduction(),
+          path: "/",
+          expires: expiresAt,
+        });
+      }
+    }
+
+    if (!familyId) throw redirect({ to: "/admin/login" });
+    return { familyId };
+  });
 
 /* ──────────────────────────── login & setup ──────────────────────────── */
 

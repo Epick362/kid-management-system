@@ -7,9 +7,10 @@ import { listKidsFn, upsertKidFn, deleteKidFn } from "../server/admin-fns";
 import { kidThemes, type KidTheme } from "../server/schema";
 import { ErrorBanner } from "../components/ErrorBanner";
 import { getErrorMessage } from "../lib/errors";
+import { installTokenArgFromLocation } from "../lib/install-token";
 
 export const Route = createFileRoute("/admin/kids")({
-  beforeLoad: () => requireAdminFn(),
+  beforeLoad: ({ location }) => requireAdminFn(installTokenArgFromLocation(location)),
   loader: () => listKidsFn(),
   component: AdminKidsPage,
 });

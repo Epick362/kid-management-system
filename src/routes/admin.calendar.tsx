@@ -7,6 +7,7 @@ import { sk } from "../lib/sk";
 import { getErrorMessage } from "../lib/errors";
 import { requireAdminFn } from "../server/auth-fns";
 import { listKidsFn } from "../server/admin-fns";
+import { installTokenArgFromLocation } from "../lib/install-token";
 import { getKidCalendarFn } from "../server/kid-fns";
 import {
   getKidDayDetailsFn,
@@ -18,7 +19,7 @@ import {
 import type { IncidentCategory } from "../server/schema";
 
 export const Route = createFileRoute("/admin/calendar")({
-  beforeLoad: () => requireAdminFn(),
+  beforeLoad: ({ location }) => requireAdminFn(installTokenArgFromLocation(location)),
   loader: async () => {
     const { kids } = await listKidsFn();
     const active = kids.filter((k) => k.active);

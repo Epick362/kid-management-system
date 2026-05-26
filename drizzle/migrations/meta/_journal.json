@@ -15,6 +15,13 @@
       "when": 1779008596286,
       "tag": "0001_tough_maria_hill",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1779819611784,
+      "tag": "0002_concerned_thunderbird",
+      "breakpoints": true
     }
   ]
 }

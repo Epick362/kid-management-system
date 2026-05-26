@@ -122,6 +122,7 @@ const choreInputSchema = z.object({
   maxPerDay: z.number().int().min(1).max(20).nullable().default(null),
   maxPerWeek: z.number().int().min(1).max(50).nullable().default(null),
   requiredForPlay: z.boolean().default(false),
+  manualMinutes: z.boolean().default(false),
   active: z.boolean().default(true),
 });
 
@@ -136,6 +137,8 @@ export const upsertChoreFn = createServerFn({ method: "POST" })
     const reward = data.type === "family_duty" ? 0 : data.rewardMinutes;
     // required_for_play is only meaningful for family_duty
     const required = data.type === "family_duty" ? data.requiredForPlay : false;
+    // manual_minutes is only meaningful for earning chores (family_duty awards 0 either way)
+    const manualMinutes = data.type === "family_duty" ? false : data.manualMinutes;
 
     if (data.id) {
       await db
@@ -150,6 +153,7 @@ export const upsertChoreFn = createServerFn({ method: "POST" })
           maxPerDay: data.maxPerDay,
           maxPerWeek: data.maxPerWeek,
           requiredForPlay: required,
+          manualMinutes,
           active: data.active,
         })
         .where(and(eq(schema.chores.id, data.id), eq(schema.chores.familyId, familyId)));
@@ -168,6 +172,7 @@ export const upsertChoreFn = createServerFn({ method: "POST" })
         maxPerDay: data.maxPerDay,
         maxPerWeek: data.maxPerWeek,
         requiredForPlay: required,
+        manualMinutes,
         active: data.active,
         sortOrder: 100,
       })
@@ -226,6 +231,62 @@ export const updateSettingsFn = createServerFn({ method: "POST" })
         defaultChoreMinutes: data.defaultChoreMinutes,
       })
       .where(eq(schema.families.id, familyId));
+    return { ok: true as const };
+  });
+
+/* ──────────────────────── install tokens (PWA) ───────────────────────── */
+
+export const listInstallTokensFn = createServerFn({ method: "GET" }).handler(async () => {
+  const familyId = await authedFamilyIdOrThrow();
+  const { getDbFromEnv } = await import("./env.server");
+  const db = getDbFromEnv();
+  const rows = await db.query.adminInstallTokens.findMany({
+    where: eq(schema.adminInstallTokens.familyId, familyId),
+    orderBy: (t, { desc }) => [desc(t.createdAt)],
+  });
+  return {
+    tokens: rows.map((t) => ({
+      id: t.id,
+      label: t.label,
+      createdAt: t.createdAt,
+      lastUsedAt: t.lastUsedAt,
+    })),
+  };
+});
+
+export const createInstallTokenFn = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) =>
+    z.object({ label: z.string().min(1).max(60) }).parse(data),
+  )
+  .handler(async ({ data }) => {
+    const familyId = await authedFamilyIdOrThrow();
+    const { getDbFromEnv } = await import("./env.server");
+    const db = getDbFromEnv();
+    // 32 bytes of entropy, hex-encoded
+    const bytes = crypto.getRandomValues(new Uint8Array(32));
+    const id = Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+    await db.insert(schema.adminInstallTokens).values({
+      id,
+      familyId,
+      label: data.label,
+    });
+    return { ok: true as const, id };
+  });
+
+export const deleteInstallTokenFn = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) => z.object({ id: z.string().min(1) }).parse(data))
+  .handler(async ({ data }) => {
+    const familyId = await authedFamilyIdOrThrow();
+    const { getDbFromEnv } = await import("./env.server");
+    const db = getDbFromEnv();
+    await db
+      .delete(schema.adminInstallTokens)
+      .where(
+        and(
+          eq(schema.adminInstallTokens.id, data.id),
+          eq(schema.adminInstallTokens.familyId, familyId),
+        ),
+      );
     return { ok: true as const };
   });
 

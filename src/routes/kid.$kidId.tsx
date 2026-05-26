@@ -1,9 +1,10 @@
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { sk } from "../lib/sk";
 import { getKidCalendarFn, getKidDashboardFn, kidLogCompletionFn } from "../server/kid-fns";
 import { choreTypes, type ChoreType } from "../server/schema";
 import { CalendarGrid } from "../components/CalendarGrid";
+import { NumberInput } from "../components/NumberInput";
 import { getErrorMessage } from "../lib/errors";
 
 export const Route = createFileRoute("/kid/$kidId")({
@@ -32,21 +33,52 @@ function KidDashboard() {
   const [celebrate, setCelebrate] = useState<{ msg: string; minutes: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // Keep `refresh` stable across renders so the polling effect doesn't re-bind.
+  const kidIdRef = useRef(data.kid.id);
+  kidIdRef.current = data.kid.id;
+  const refreshRef = useRef<() => Promise<void>>(async () => {});
   async function refresh() {
     try {
-      const next = await getKidDashboardFn({ data: { kidId: data.kid.id } });
+      const next = await getKidDashboardFn({ data: { kidId: kidIdRef.current } });
       setData((prev) => ({ ...next, cal: prev.cal }));
     } catch (err) {
       setError(getErrorMessage(err, sk.errors.loadFailed));
     }
   }
+  refreshRef.current = refresh;
 
-  async function onTapChore(choreId: number) {
+  // Live sync: the kid's device is usually open while a parent edits something
+  // in admin (chores, minutes, settings). Poll every 10s while the tab is
+  // visible, and refresh immediately when the device wakes / refocuses.
+  useEffect(() => {
+    let cancelled = false;
+    const TICK_MS = 10_000;
+    const tick = () => {
+      if (cancelled || document.visibilityState !== "visible") return;
+      refreshRef.current().catch(() => {});
+    };
+    const id = window.setInterval(tick, TICK_MS);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") refreshRef.current().catch(() => {});
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", onVisible);
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", onVisible);
+    };
+  }, []);
+
+  async function onTapChore(choreId: number, minutes?: number) {
     if (busy) return;
     setBusy(true);
     setError(null);
     try {
-      const result = await kidLogCompletionFn({ data: { kidId: data.kid.id, choreId } });
+      const result = await kidLogCompletionFn({
+        data: { kidId: data.kid.id, choreId, minutes },
+      });
       if (result.ok === false) return;
       setCelebrate({ msg: pickPraise(), minutes: result.minutesAwarded });
       setTimeout(() => setCelebrate(null), 2200);
@@ -128,6 +160,16 @@ function KidDashboard() {
                 {list.map((c) => {
                   const disabled = busy || c.dayCapReached || c.weekCapReached;
                   const required = c.requiredForPlay && c.type === "family_duty" && c.todayCount === 0;
+                  if (c.manualMinutes && c.type !== "family_duty") {
+                    return (
+                      <KidManualChoreRow
+                        key={c.id}
+                        chore={c}
+                        disabled={disabled}
+                        onSubmit={(mins) => onTapChore(c.id, mins)}
+                      />
+                    );
+                  }
                   return (
                     <button
                       key={c.id}
@@ -179,6 +221,58 @@ function KidDashboard() {
       {celebrate && <CelebrateOverlay msg={celebrate.msg} minutes={celebrate.minutes} />}
       {error && <ErrorToast msg={error} onDismiss={() => setError(null)} />}
     </main>
+  );
+}
+
+function KidManualChoreRow({
+  chore,
+  disabled,
+  onSubmit,
+}: {
+  chore: {
+    id: number;
+    name: string;
+    icon: string;
+    todayCount: number;
+    maxPerDay: number | null;
+  };
+  disabled: boolean;
+  onSubmit: (minutes: number) => void;
+}) {
+  const [minutes, setMinutes] = useState<number>(15);
+  return (
+    <div
+      className={
+        "kid-chore w-full rounded-card p-4 flex items-center gap-3 shadow-sm " +
+        (disabled ? "bg-white/30 text-ink-soft" : "bg-white")
+      }
+    >
+      <span className="text-4xl">{chore.icon}</span>
+      <div className="flex-1 min-w-0">
+        <div className="font-semibold text-lg truncate">{chore.name}</div>
+        <div className="text-sm text-ink-soft">
+          {sk.admin.log.manualMinutesPrompt}
+          {chore.maxPerDay !== null && chore.maxPerDay > 1 && (
+            <> · {chore.todayCount}/{chore.maxPerDay}</>
+          )}
+        </div>
+      </div>
+      <NumberInput
+        min={1}
+        max={600}
+        value={minutes}
+        onChange={setMinutes}
+        className="w-16 px-2 py-1.5 rounded-card bg-cream border border-ink-soft/20 text-center"
+      />
+      <button
+        type="button"
+        disabled={disabled || minutes <= 0}
+        onClick={() => onSubmit(minutes)}
+        className="rounded-card bg-mint-deep text-white px-3 py-2 font-medium disabled:opacity-50"
+      >
+        +
+      </button>
+    </div>
   );
 }
 

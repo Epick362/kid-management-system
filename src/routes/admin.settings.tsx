@@ -7,14 +7,21 @@ import {
   getSettingsFn,
   updateSettingsFn,
   changePasswordFn,
+  listInstallTokensFn,
+  createInstallTokenFn,
+  deleteInstallTokenFn,
 } from "../server/admin-fns";
 import { ErrorBanner } from "../components/ErrorBanner";
 import { NumberInput } from "../components/NumberInput";
 import { getErrorMessage } from "../lib/errors";
+import { installTokenArgFromLocation } from "../lib/install-token";
 
 export const Route = createFileRoute("/admin/settings")({
-  beforeLoad: () => requireAdminFn(),
-  loader: () => getSettingsFn(),
+  beforeLoad: ({ location }) => requireAdminFn(installTokenArgFromLocation(location)),
+  loader: async () => {
+    const [settings, tokens] = await Promise.all([getSettingsFn(), listInstallTokensFn()]);
+    return { ...settings, installTokens: tokens.tokens };
+  },
   component: AdminSettingsPage,
 });
 
@@ -137,7 +144,7 @@ function AdminSettingsPage() {
         </div>
       </form>
 
-      <section className="border-t border-ink-soft/15 pt-8">
+      <section className="border-t border-ink-soft/15 pt-8 mb-10">
         <h2 className="text-lg font-semibold mb-3">{sk.admin.settings.changePassword}</h2>
         <form onSubmit={onChangePassword} className="space-y-3 max-w-sm">
           <ErrorBanner message={pwError} onDismiss={() => setPwError(null)} />
@@ -162,6 +169,132 @@ function AdminSettingsPage() {
           </div>
         </form>
       </section>
+
+      <section className="border-t border-ink-soft/15 pt-8">
+        <h2 className="text-lg font-semibold mb-2">{sk.admin.settings.installHeading}</h2>
+        <p className="text-sm text-ink-soft mb-2">{sk.admin.settings.installHelp}</p>
+        <p className="text-xs text-peach-deep mb-4">{sk.admin.settings.installWarning}</p>
+        <InstallTokensSection tokens={initial.installTokens} />
+      </section>
     </AdminShell>
+  );
+}
+
+function InstallTokensSection({
+  tokens,
+}: {
+  tokens: { id: string; label: string | null; createdAt: Date; lastUsedAt: Date | null }[];
+}) {
+  const router = useRouter();
+  const [label, setLabel] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  function urlFor(id: string): string {
+    const origin =
+      typeof window !== "undefined" ? window.location.origin : "";
+    return `${origin}/admin?install=${id}`;
+  }
+
+  async function onCreate(e: React.FormEvent) {
+    e.preventDefault();
+    if (!label.trim()) return;
+    setError(null);
+    setBusy(true);
+    try {
+      await createInstallTokenFn({ data: { label: label.trim() } });
+      setLabel("");
+      router.invalidate();
+    } catch (err) {
+      setError(getErrorMessage(err, sk.errors.saveFailed));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function onRevoke(id: string) {
+    if (!confirm(sk.admin.settings.installConfirmRevoke)) return;
+    setError(null);
+    try {
+      await deleteInstallTokenFn({ data: { id } });
+      router.invalidate();
+    } catch (err) {
+      setError(getErrorMessage(err, sk.errors.deleteFailed));
+    }
+  }
+
+  async function onCopy(id: string) {
+    try {
+      await navigator.clipboard.writeText(urlFor(id));
+      setCopiedId(id);
+      setTimeout(() => setCopiedId((cur) => (cur === id ? null : cur)), 1500);
+    } catch {
+      // ignore clipboard failures (older iOS, denied permission, etc.)
+    }
+  }
+
+  return (
+    <>
+      <ErrorBanner message={error} onDismiss={() => setError(null)} />
+      <form onSubmit={onCreate} className="flex flex-wrap gap-2 items-end mb-4">
+        <label className="block flex-1 min-w-[160px]">
+          <span className="block text-sm font-medium mb-1">Štítok</span>
+          <input
+            type="text"
+            value={label}
+            onChange={(e) => setLabel(e.target.value)}
+            className={inputCls}
+            maxLength={60}
+            placeholder={sk.admin.settings.installLabelPlaceholder}
+          />
+        </label>
+        <button type="submit" disabled={busy || !label.trim()} className={primaryBtn}>
+          {sk.admin.settings.installCreate}
+        </button>
+      </form>
+
+      {tokens.length === 0 ? (
+        <p className="text-sm text-ink-soft">{sk.admin.settings.installNone}</p>
+      ) : (
+        <ul className="space-y-2">
+          {tokens.map((t) => (
+            <li
+              key={t.id}
+              className="bg-white/70 rounded-card p-3 flex flex-wrap items-center gap-2"
+            >
+              <div className="flex-1 min-w-[140px]">
+                <div className="font-medium truncate">{t.label ?? "—"}</div>
+                <div className="text-xs text-ink-soft">
+                  {t.lastUsedAt
+                    ? sk.admin.settings.installLastUsed +
+                      new Date(t.lastUsedAt).toLocaleString("sk-SK")
+                    : sk.admin.settings.installNever}
+                </div>
+                <div className="text-[11px] text-ink-soft/70 font-mono break-all mt-1">
+                  {urlFor(t.id)}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => onCopy(t.id)}
+                className="rounded-card bg-lavender-deep text-white text-sm px-3 py-1.5"
+              >
+                {copiedId === t.id
+                  ? sk.admin.settings.installCopied
+                  : sk.admin.settings.installCopy}
+              </button>
+              <button
+                type="button"
+                onClick={() => onRevoke(t.id)}
+                className="rounded-card text-peach-deep text-sm px-3 py-1.5 hover:bg-peach/40"
+              >
+                {sk.admin.settings.installRevoke}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </>
   );
 }

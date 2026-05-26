@@ -24,9 +24,10 @@ import {
 import { ErrorBanner } from "../components/ErrorBanner";
 import { NumberInput } from "../components/NumberInput";
 import { getErrorMessage } from "../lib/errors";
+import { installTokenArgFromLocation } from "../lib/install-token";
 
 export const Route = createFileRoute("/admin/log")({
-  beforeLoad: () => requireAdminFn(),
+  beforeLoad: ({ location }) => requireAdminFn(installTokenArgFromLocation(location)),
   loader: async () => {
     const { kids } = await listKidsFn();
     const active = kids.filter((k) => k.active);
@@ -65,12 +66,12 @@ function AdminLogPage() {
     await refreshState(id);
   }
 
-  async function onLogChore(choreId: number) {
+  async function onLogChore(choreId: number, minutes?: number) {
     if (!kidId) return;
     setBusy(true);
     setError(null);
     try {
-      const res = await logCompletionFn({ data: { kidId, choreId } });
+      const res = await logCompletionFn({ data: { kidId, choreId, minutes } });
       if (res.ok === false) {
         setFlash(res.error === "weekLimitReached" ? sk.admin.log.weekLimitReached : sk.admin.log.limitReached);
       } else {
@@ -193,6 +194,16 @@ function AdminLogPage() {
               <div className="grid grid-cols-2 gap-2">
                 {list.map((c) => {
                   const disabled = busy || c.dayCapReached || c.weekCapReached;
+                  if (c.manualMinutes && c.type !== "family_duty") {
+                    return (
+                      <AdminManualChoreCard
+                        key={c.id}
+                        chore={c}
+                        disabled={disabled}
+                        onSubmit={(mins) => onLogChore(c.id, mins)}
+                      />
+                    );
+                  }
                   return (
                     <button
                       key={c.id}
@@ -354,6 +365,58 @@ function choreSubtitle(
     type === "family_duty" ? sk.admin.chores.groupHeading.family_duty : `${reward} min`;
   if (maxPerDay !== null) label += ` · ${todayCount}/${maxPerDay}`;
   return label;
+}
+
+function AdminManualChoreCard({
+  chore,
+  disabled,
+  onSubmit,
+}: {
+  chore: {
+    id: number;
+    name: string;
+    icon: string;
+    todayCount: number;
+    maxPerDay: number | null;
+  };
+  disabled: boolean;
+  onSubmit: (minutes: number) => void;
+}) {
+  const [minutes, setMinutes] = useState<number>(15);
+  return (
+    <div
+      className={
+        "rounded-card p-3 flex items-center gap-2 " +
+        (disabled ? "bg-white/30 text-ink-soft" : "bg-white/80 shadow-sm")
+      }
+    >
+      <span className="text-2xl">{chore.icon}</span>
+      <div className="flex-1 min-w-0">
+        <div className="text-sm font-medium truncate">{chore.name}</div>
+        <div className="text-[11px] text-ink-soft">
+          {sk.admin.chores.manualMinutesShort}
+          {chore.maxPerDay !== null && (
+            <> · {chore.todayCount}/{chore.maxPerDay}</>
+          )}
+        </div>
+      </div>
+      <NumberInput
+        min={1}
+        max={600}
+        value={minutes}
+        onChange={setMinutes}
+        className="w-14 px-1.5 py-1 rounded-card bg-cream border border-ink-soft/20 text-center text-sm"
+      />
+      <button
+        type="button"
+        disabled={disabled || minutes <= 0}
+        onClick={() => onSubmit(minutes)}
+        className="rounded-card bg-mint-deep text-white px-2.5 py-1.5 text-sm font-medium disabled:opacity-50"
+      >
+        +
+      </button>
+    </div>
+  );
 }
 
 function DeleteBtn({ onClick }: { onClick: () => void }) {

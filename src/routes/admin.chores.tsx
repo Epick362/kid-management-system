@@ -8,9 +8,10 @@ import { choreTypes, type ChoreType } from "../server/schema";
 import { ErrorBanner } from "../components/ErrorBanner";
 import { NumberInput } from "../components/NumberInput";
 import { getErrorMessage } from "../lib/errors";
+import { installTokenArgFromLocation } from "../lib/install-token";
 
 export const Route = createFileRoute("/admin/chores")({
-  beforeLoad: () => requireAdminFn(),
+  beforeLoad: ({ location }) => requireAdminFn(installTokenArgFromLocation(location)),
   loader: () => listChoresFn(),
   component: AdminChoresPage,
 });
@@ -32,6 +33,7 @@ interface EditingChore {
   maxPerDay: number | null;
   maxPerWeek: number | null;
   requiredForPlay: boolean;
+  manualMinutes: boolean;
   active: boolean;
 }
 
@@ -45,6 +47,7 @@ const blank = (type: ChoreType): EditingChore => ({
   maxPerDay: type === "earning_daily" ? 1 : null,
   maxPerWeek: type === "earning_weekly_quest" ? 1 : null,
   requiredForPlay: false,
+  manualMinutes: false,
   active: true,
 });
 
@@ -120,7 +123,7 @@ function AdminChoresPage() {
                   <div className="flex-1 min-w-0">
                     <div className="font-medium truncate">{c.name}</div>
                     <div className="text-xs text-ink-soft">
-                      {choreLabel(c.type, c.rewardMinutes)}
+                      {choreLabel(c.type, c.rewardMinutes, c.manualMinutes)}
                     </div>
                   </div>
                   <button
@@ -137,6 +140,7 @@ function AdminChoresPage() {
                         maxPerDay: c.maxPerDay,
                         maxPerWeek: c.maxPerWeek,
                         requiredForPlay: c.requiredForPlay,
+                        manualMinutes: c.manualMinutes,
                         active: c.active,
                       })
                     }
@@ -175,8 +179,9 @@ function AdminChoresPage() {
   );
 }
 
-function choreLabel(type: ChoreType, reward: number): string {
+function choreLabel(type: ChoreType, reward: number, manualMinutes: boolean): string {
   if (type === "family_duty") return sk.admin.chores.groupHeading.family_duty;
+  if (manualMinutes) return sk.admin.chores.manualMinutesShort;
   return `${reward} min`;
 }
 
@@ -250,6 +255,23 @@ function ChoreForm({
         </Field>
 
         {!isFamily && (
+          <label className="flex items-start gap-2">
+            <input
+              type="checkbox"
+              checked={value.manualMinutes}
+              onChange={(e) => onChange({ ...value, manualMinutes: e.target.checked })}
+              className="mt-1"
+            />
+            <span>
+              <span className="block">{sk.admin.chores.manualMinutesLabel}</span>
+              <span className="block text-xs text-ink-soft">
+                {sk.admin.chores.manualMinutesHint}
+              </span>
+            </span>
+          </label>
+        )}
+
+        {!isFamily && !value.manualMinutes && (
           <Field label={sk.admin.chores.rewardLabel}>
             <NumberInput
               min={0}

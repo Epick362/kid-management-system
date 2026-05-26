@@ -64,6 +64,12 @@ export const chores = sqliteTable(
      * shows a soft warning but does not block — parent override is allowed.
      */
     requiredForPlay: integer("required_for_play", { mode: "boolean" }).notNull().default(false),
+    /**
+     * If true (only meaningful for earning chores), the user picks the minute
+     * amount at log time instead of using `rewardMinutes`. Useful for things
+     * like reading where time spent varies. Family_duty ignores this flag.
+     */
+    manualMinutes: integer("manual_minutes", { mode: "boolean" }).notNull().default(false),
     active: integer("active", { mode: "boolean" }).notNull().default(true),
     sortOrder: integer("sort_order").notNull().default(0),
   },
@@ -170,6 +176,25 @@ export const adminSessions = sqliteTable("admin_sessions", {
   createdAt: integer("created_at", { mode: "timestamp_ms" })
     .notNull()
     .default(sql`(unixepoch('subsec') * 1000)`),
+});
+
+/**
+ * Long-lived install tokens used to re-establish an admin session from a
+ * bookmarked PWA URL of the form `/admin?install=<token>`. The token itself
+ * IS the primary key — keep it long (>= 32 bytes of entropy). Each token
+ * mints a fresh session cookie on use, so revoking a token is just a row
+ * delete.
+ */
+export const adminInstallTokens = sqliteTable("admin_install_tokens", {
+  id: text("id").primaryKey(),
+  familyId: integer("family_id")
+    .notNull()
+    .references(() => families.id, { onDelete: "cascade" }),
+  label: text("label"),
+  createdAt: integer("created_at", { mode: "timestamp_ms" })
+    .notNull()
+    .default(sql`(unixepoch('subsec') * 1000)`),
+  lastUsedAt: integer("last_used_at", { mode: "timestamp_ms" }),
 });
 
 /* ---------- relations (used by drizzle's relational query API) ---------- */
